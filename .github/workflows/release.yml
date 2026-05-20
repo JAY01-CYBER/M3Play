@@ -3,8 +3,8 @@ name: Build Signed Release APK
 on:
   push:
     tags:
-      - "v*"
-  workflow_dispatch:
+      - "v*" # Jab aap v1.0.1 jaisa tag push karenge tab chalega
+  workflow_dispatch: # Actions tab se manually run karne ke liye
 
 permissions:
   contents: write
@@ -23,13 +23,15 @@ jobs:
           distribution: temurin
           java-version: 21
 
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      # Aapke KEYSTORE_BASE64 secret ko decode karke app folder me daal raha hai
       - name: Decode Keystore
         run: |
           echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > app/release.jks
 
-      - name: Grant permission
-        run: chmod +x gradlew
-
+      # Ye step build.gradle.kts ko environment variables pass karke signed APK banayega
       - name: Build Signed APK
         env:
           RELEASE_STORE_FILE: release.jks
@@ -38,8 +40,27 @@ jobs:
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: ./gradlew assembleRelease
 
-      - name: Upload APK
+      - name: Find APK Path
+        run: |
+          APK_PATH=$(find app/build/outputs/apk -type f -name "*.apk" | grep "release" | head -n 1)
+          echo "APK_PATH=$APK_PATH" >> $GITHUB_ENV
+
+      # Agar aap Actions tab se manually chalaenge toh yahan se download hoga
+      - name: Upload APK Artifact (Manual Run)
+        if: github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v4
         with:
-          name: M3Play-Release
-          path: app/build/outputs/apk/release/*.apk
+          name: M3Play-Release-APK
+          path: ${{ env.APK_PATH }}
+
+      # Jab aap Git Tag push karenge tab automatic Releases page par APK upload ho jayega
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ env.APK_PATH }}
+          name: M3 Play ${{ github.ref_name }}
+          tag_name: ${{ github.ref_name }}
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
