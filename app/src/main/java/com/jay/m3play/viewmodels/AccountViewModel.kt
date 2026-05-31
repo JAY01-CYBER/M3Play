@@ -2,11 +2,11 @@ package com.jay.m3play.viewmodels
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.arturo254.innertube.YouTube
-import com.arturo254.innertube.models.AlbumItem
-import com.arturo254.innertube.models.ArtistItem
-import com.arturo254.innertube.models.PlaylistItem
-import com.arturo254.innertube.utils.completedLibraryPage
+import com.jay.innertube.YouTube
+import com.jay.innertube.models.AlbumItem
+import com.jay.innertube.models.ArtistItem
+import com.jay.innertube.models.PlaylistItem
+import com.jay.innertube.utils.completedLibraryPage
 import com.jay.m3play.utils.reportException
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow

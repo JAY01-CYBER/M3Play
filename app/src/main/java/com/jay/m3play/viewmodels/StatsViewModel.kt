@@ -2,7 +2,7 @@ package com.jay.m3play.viewmodels
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.arturo254.innertube.YouTube
+import com.jay.innertube.YouTube
 import com.jay.m3play.constants.statToPeriod
 import com.jay.m3play.db.MusicDatabase
 import com.jay.m3play.ui.screens.OptionStats

@@ -84,7 +84,7 @@ import androidx.core.net.toUri
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
-import com.arturo254.innertube.utils.parseCookieString
+import com.jay.innertube.utils.parseCookieString
 import com.jay.m3play.BuildConfig
 import com.jay.m3play.LocalPlayerAwareWindowInsets
 import com.jay.m3play.R

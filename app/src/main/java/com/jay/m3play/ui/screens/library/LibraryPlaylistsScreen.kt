@@ -42,7 +42,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
-import com.arturo254.innertube.utils.parseCookieString
+import com.jay.innertube.utils.parseCookieString
 import com.jay.m3play.LocalPlayerAwareWindowInsets
 import com.jay.m3play.R
 import com.jay.m3play.constants.CONTENT_TYPE_HEADER

@@ -8,9 +8,9 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.arturo254.innertube.YouTube
-import com.arturo254.innertube.models.filterExplicit
-import com.arturo254.innertube.pages.SearchSummaryPage
+import com.jay.innertube.YouTube
+import com.jay.innertube.models.filterExplicit
+import com.jay.innertube.pages.SearchSummaryPage
 import com.jay.m3play.constants.HideExplicitKey
 import com.jay.m3play.models.ItemsPage
 import com.jay.m3play.utils.dataStore

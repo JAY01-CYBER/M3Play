@@ -11,8 +11,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.navigation.NavController
-import com.arturo254.innertube.models.PlaylistItem
-import com.arturo254.innertube.models.WatchEndpoint
+import com.jay.innertube.models.PlaylistItem
+import com.jay.innertube.models.WatchEndpoint
 import com.jay.m3play.R
 import com.jay.m3play.db.entities.Album
 import com.jay.m3play.db.entities.Artist

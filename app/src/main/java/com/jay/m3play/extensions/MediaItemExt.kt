@@ -3,7 +3,7 @@ package com.jay.m3play.extensions
 import androidx.core.net.toUri
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata.MEDIA_TYPE_MUSIC
-import com.arturo254.innertube.models.SongItem
+import com.jay.innertube.models.SongItem
 import com.jay.m3play.db.entities.Song
 import com.jay.m3play.models.MediaMetadata
 import com.jay.m3play.models.toMediaMetadata

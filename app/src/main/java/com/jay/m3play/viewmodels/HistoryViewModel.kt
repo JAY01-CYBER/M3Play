@@ -3,8 +3,8 @@ package com.jay.m3play.viewmodels
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.arturo254.innertube.YouTube
-import com.arturo254.innertube.pages.HistoryPage
+import com.jay.innertube.YouTube
+import com.jay.innertube.pages.HistoryPage
 import com.jay.m3play.constants.HistorySource
 import com.jay.m3play.db.MusicDatabase
 import com.jay.m3play.utils.reportException

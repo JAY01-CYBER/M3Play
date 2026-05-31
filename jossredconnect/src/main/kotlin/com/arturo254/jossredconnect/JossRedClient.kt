@@ -1,4 +1,4 @@
-package com.arturo254.jossredconnect
+package com.jay.jossredconnect
 
 import okhttp3.OkHttpClient
 import okhttp3.Request

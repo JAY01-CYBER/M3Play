@@ -1,9 +1,9 @@
-package com.arturo254.kugou
+package com.jay.kugou
 
-import com.arturo254.kugou.models.DownloadLyricsResponse
-import com.arturo254.kugou.models.Keyword
-import com.arturo254.kugou.models.SearchLyricsResponse
-import com.arturo254.kugou.models.SearchSongResponse
+import com.jay.kugou.models.DownloadLyricsResponse
+import com.jay.kugou.models.Keyword
+import com.jay.kugou.models.SearchLyricsResponse
+import com.jay.kugou.models.SearchSongResponse
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.plugins.compression.ContentEncoding

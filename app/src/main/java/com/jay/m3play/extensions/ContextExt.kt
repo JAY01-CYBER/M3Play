@@ -3,7 +3,7 @@ package com.jay.m3play.extensions
 import android.content.Context
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
-import com.arturo254.innertube.utils.parseCookieString
+import com.jay.innertube.utils.parseCookieString
 import com.jay.m3play.constants.InnerTubeCookieKey
 import com.jay.m3play.constants.YtmSyncKey
 import com.jay.m3play.utils.dataStore

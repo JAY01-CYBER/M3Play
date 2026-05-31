@@ -1,7 +1,7 @@
 package com.jay.m3play.models
 
 import androidx.compose.runtime.Immutable
-import com.arturo254.innertube.models.SongItem
+import com.jay.innertube.models.SongItem
 import com.jay.m3play.db.entities.Song
 import com.jay.m3play.db.entities.SongEntity
 import com.jay.m3play.ui.utils.resize

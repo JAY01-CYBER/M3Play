@@ -1,7 +1,7 @@
 package com.jay.m3play.lyrics
 
 import android.content.Context
-import com.arturo254.lrclib.LrcLib
+import com.jay.lrclib.LrcLib
 import com.jay.m3play.constants.EnableLrcLibKey
 import com.jay.m3play.utils.dataStore
 import com.jay.m3play.utils.get

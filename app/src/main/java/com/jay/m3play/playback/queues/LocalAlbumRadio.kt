@@ -1,8 +1,8 @@
 package com.jay.m3play.playback.queues
 
 import androidx.media3.common.MediaItem
-import com.arturo254.innertube.YouTube
-import com.arturo254.innertube.models.WatchEndpoint
+import com.jay.innertube.YouTube
+import com.jay.innertube.models.WatchEndpoint
 import com.jay.m3play.db.entities.AlbumWithSongs
 import com.jay.m3play.extensions.toMediaItem
 import com.jay.m3play.models.MediaMetadata

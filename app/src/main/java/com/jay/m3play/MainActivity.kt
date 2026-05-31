@@ -150,9 +150,9 @@ import androidx.navigation.compose.rememberNavController
 import coil.compose.AsyncImage
 import coil.imageLoader
 import coil.request.ImageRequest
-import com.arturo254.innertube.YouTube
-import com.arturo254.innertube.models.SongItem
-import com.arturo254.innertube.models.WatchEndpoint
+import com.jay.innertube.YouTube
+import com.jay.innertube.models.SongItem
+import com.jay.innertube.models.WatchEndpoint
 import com.jay.m3play.constants.AppBarHeight
 import com.jay.m3play.constants.DarkModeKey
 import com.jay.m3play.constants.DefaultOpenTabKey

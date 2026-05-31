@@ -1,7 +1,7 @@
 package com.jay.m3play.lyrics
 
 import android.content.Context
-import com.arturo254.kugou.KuGou
+import com.jay.kugou.KuGou
 import com.jay.m3play.constants.EnableKugouKey
 import com.jay.m3play.utils.dataStore
 import com.jay.m3play.utils.get

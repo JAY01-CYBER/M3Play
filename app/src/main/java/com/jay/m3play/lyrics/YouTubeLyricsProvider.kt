@@ -1,8 +1,8 @@
 package com.jay.m3play.lyrics
 
 import android.content.Context
-import com.arturo254.innertube.YouTube
-import com.arturo254.innertube.models.WatchEndpoint
+import com.jay.innertube.YouTube
+import com.jay.innertube.models.WatchEndpoint
 
 object YouTubeLyricsProvider : LyricsProvider {
     override val name = "YouTube Music"

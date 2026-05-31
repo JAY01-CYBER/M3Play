@@ -1,12 +1,12 @@
 package com.jay.m3play.utils
 
-import com.arturo254.innertube.YouTube
-import com.arturo254.innertube.models.AlbumItem
-import com.arturo254.innertube.models.ArtistItem
-import com.arturo254.innertube.models.PlaylistItem
-import com.arturo254.innertube.models.SongItem
-import com.arturo254.innertube.utils.completed
-import com.arturo254.innertube.utils.completedLibraryPage
+import com.jay.innertube.YouTube
+import com.jay.innertube.models.AlbumItem
+import com.jay.innertube.models.ArtistItem
+import com.jay.innertube.models.PlaylistItem
+import com.jay.innertube.models.SongItem
+import com.jay.innertube.utils.completed
+import com.jay.innertube.utils.completedLibraryPage
 import com.jay.m3play.db.MusicDatabase
 import com.jay.m3play.db.entities.ArtistEntity
 import com.jay.m3play.db.entities.PlaylistEntity

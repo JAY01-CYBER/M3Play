@@ -38,9 +38,9 @@ import kotlinx.coroutines.guava.future
 import kotlinx.coroutines.plus
 import javax.inject.Inject
 
-import com.arturo254.innertube.YouTube
-import com.arturo254.innertube.models.PlaylistItem
-import com.arturo254.innertube.pages.LibraryPage
+import com.jay.innertube.YouTube
+import com.jay.innertube.models.PlaylistItem
+import com.jay.innertube.pages.LibraryPage
 
 
 class MediaLibrarySessionCallback

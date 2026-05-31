@@ -48,10 +48,10 @@ import androidx.media3.exoplayer.offline.Download
 import androidx.media3.exoplayer.offline.DownloadRequest
 import androidx.media3.exoplayer.offline.DownloadService
 import coil.compose.AsyncImage
-import com.arturo254.innertube.YouTube
-import com.arturo254.innertube.models.PlaylistItem
-import com.arturo254.innertube.models.SongItem
-import com.arturo254.innertube.utils.completed
+import com.jay.innertube.YouTube
+import com.jay.innertube.models.PlaylistItem
+import com.jay.innertube.models.SongItem
+import com.jay.innertube.utils.completed
 import com.jay.m3play.LocalDatabase
 import com.jay.m3play.LocalDownloadUtil
 import com.jay.m3play.LocalPlayerConnection

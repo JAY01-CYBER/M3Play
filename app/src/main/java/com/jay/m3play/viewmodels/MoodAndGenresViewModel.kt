@@ -2,8 +2,8 @@ package com.jay.m3play.viewmodels
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.arturo254.innertube.YouTube
-import com.arturo254.innertube.pages.MoodAndGenres
+import com.jay.innertube.YouTube
+import com.jay.innertube.pages.MoodAndGenres
 import com.jay.m3play.utils.reportException
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow

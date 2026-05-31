@@ -3,9 +3,9 @@ package com.jay.m3play.viewmodels
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.arturo254.innertube.YouTube
-import com.arturo254.innertube.models.filterExplicit
-import com.arturo254.innertube.pages.ExplorePage
+import com.jay.innertube.YouTube
+import com.jay.innertube.models.filterExplicit
+import com.jay.innertube.pages.ExplorePage
 import com.jay.m3play.constants.HideExplicitKey
 import com.jay.m3play.db.MusicDatabase
 import com.jay.m3play.utils.dataStore

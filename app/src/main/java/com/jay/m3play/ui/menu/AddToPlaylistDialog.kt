@@ -21,8 +21,8 @@ import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
-import com.arturo254.innertube.YouTube
-import com.arturo254.innertube.utils.parseCookieString
+import com.jay.innertube.YouTube
+import com.jay.innertube.utils.parseCookieString
 import com.jay.m3play.LocalDatabase
 import com.jay.m3play.R
 import com.jay.m3play.constants.InnerTubeCookieKey

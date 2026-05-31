@@ -3,8 +3,8 @@ package com.jay.m3play.viewmodels
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.arturo254.innertube.YouTube
-import com.arturo254.innertube.models.AlbumItem
+import com.jay.innertube.YouTube
+import com.jay.innertube.models.AlbumItem
 import com.jay.m3play.db.MusicDatabase
 import com.jay.m3play.utils.reportException
 import dagger.hilt.android.lifecycle.HiltViewModel

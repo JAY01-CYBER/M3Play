@@ -28,7 +28,7 @@ import androidx.media3.common.Timeline
 import androidx.media3.exoplayer.offline.Download
 import androidx.media3.exoplayer.offline.DownloadRequest
 import androidx.media3.exoplayer.offline.DownloadService
-import com.arturo254.innertube.YouTube
+import com.jay.innertube.YouTube
 import com.jay.m3play.LocalDatabase
 import com.jay.m3play.LocalDownloadUtil
 import com.jay.m3play.LocalPlayerConnection
