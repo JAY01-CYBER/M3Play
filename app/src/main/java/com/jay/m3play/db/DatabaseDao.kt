@@ -6,6 +6,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.RawQuery
+import androidx.room.RoomWarnings
 import androidx.room.Transaction
 import androidx.room.Update
 import androidx.room.Upsert
@@ -56,6 +57,7 @@ import java.time.LocalDateTime
 import java.time.ZoneOffset
 import java.util.Locale
 
+@SuppressWarnings(RoomWarnings.CURSOR_MISMATCH)
 @Dao
 interface DatabaseDao {
     @Transaction
