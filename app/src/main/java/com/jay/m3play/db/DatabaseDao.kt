@@ -56,7 +56,9 @@ import java.text.Collator
 import java.time.LocalDateTime
 import java.time.ZoneOffset
 import java.util.Locale
+androidx.room.RewriteQueriesToDropUnusedColumns
 
+RewriteQueriesToDropUnusedColumns
 @SuppressWarnings(RoomWarnings.QUERY_MISMATCH)
 @Dao
 interface DatabaseDao {
