@@ -57,7 +57,7 @@ import java.time.LocalDateTime
 import java.time.ZoneOffset
 import java.util.Locale
 
-@SuppressWarnings(RoomWarnings.CURSOR_MISMATCH)
+@SuppressWarnings(RoomWarnings.QUERY_MISMATCH)
 @Dao
 interface DatabaseDao {
     @Transaction
