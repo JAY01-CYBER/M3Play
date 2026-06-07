@@ -1,4 +1,20 @@
-package com.jay.m3play
+/*
+ * Copyright (c) 2026 JAY01-CYBER
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package com.j.m3play
 
 import android.app.Application
 import android.content.Context
@@ -10,30 +26,30 @@ import coil.ImageLoader
 import coil.ImageLoaderFactory
 import coil.disk.DiskCache
 import coil.request.CachePolicy
-import com.jay.innertube.YouTube
-import com.jay.innertube.models.YouTubeLocale
-import com.jay.kugou.KuGou
-import com.jay.m3play.constants.AccountChannelHandleKey
-import com.jay.m3play.constants.AccountEmailKey
-import com.jay.m3play.constants.AccountNameKey
-import com.jay.m3play.constants.ContentCountryKey
-import com.jay.m3play.constants.ContentLanguageKey
-import com.jay.m3play.constants.CountryCodeToName
-import com.jay.m3play.constants.DataSyncIdKey
-import com.jay.m3play.constants.InnerTubeCookieKey
-import com.jay.m3play.constants.LanguageCodeToName
-import com.jay.m3play.constants.MaxImageCacheSizeKey
-import com.jay.m3play.constants.ProxyEnabledKey
-import com.jay.m3play.constants.ProxyTypeKey
-import com.jay.m3play.constants.ProxyUrlKey
-import com.jay.m3play.constants.SYSTEM_DEFAULT
-import com.jay.m3play.constants.UseLoginForBrowse
-import com.jay.m3play.constants.VisitorDataKey
-import com.jay.m3play.extensions.toEnum
-import com.jay.m3play.extensions.toInetSocketAddress
-import com.jay.m3play.utils.dataStore
-import com.jay.m3play.utils.get
-import com.jay.m3play.utils.reportException
+import com.arturo254.innertube.YouTube
+import com.arturo254.innertube.models.YouTubeLocale
+import com.arturo254.kugou.KuGou
+import com.j.m3play.constants.AccountChannelHandleKey
+import com.j.m3play.constants.AccountEmailKey
+import com.j.m3play.constants.AccountNameKey
+import com.j.m3play.constants.ContentCountryKey
+import com.j.m3play.constants.ContentLanguageKey
+import com.j.m3play.constants.CountryCodeToName
+import com.j.m3play.constants.DataSyncIdKey
+import com.j.m3play.constants.InnerTubeCookieKey
+import com.j.m3play.constants.LanguageCodeToName
+import com.j.m3play.constants.MaxImageCacheSizeKey
+import com.j.m3play.constants.ProxyEnabledKey
+import com.j.m3play.constants.ProxyTypeKey
+import com.j.m3play.constants.ProxyUrlKey
+import com.j.m3play.constants.SYSTEM_DEFAULT
+import com.j.m3play.constants.UseLoginForBrowse
+import com.j.m3play.constants.VisitorDataKey
+import com.j.m3play.extensions.toEnum
+import com.j.m3play.extensions.toInetSocketAddress
+import com.j.m3play.utils.dataStore
+import com.j.m3play.utils.get
+import com.j.m3play.utils.reportException
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
@@ -52,7 +68,7 @@ class App : Application(), ImageLoaderFactory {
     @OptIn(DelicateCoroutinesApi::class)
     override fun onCreate() {
         super.onCreate()
-        instance = this;
+        instance = this
         Timber.plant(Timber.DebugTree())
 
         val locale = Locale.getDefault()
@@ -72,10 +88,13 @@ class App : Application(), ImageLoaderFactory {
 
         if (dataStore[ProxyEnabledKey] == true) {
             try {
-                YouTube.proxy = Proxy(
-                    dataStore[ProxyTypeKey].toEnum(defaultValue = Proxy.Type.HTTP),
-                    dataStore[ProxyUrlKey]!!.toInetSocketAddress()
-                )
+                val proxyUrl = dataStore[ProxyUrlKey]
+                if (!proxyUrl.isNullOrBlank()) {
+                    YouTube.proxy = Proxy(
+                        dataStore[ProxyTypeKey].toEnum(defaultValue = Proxy.Type.HTTP),
+                        proxyUrl.toInetSocketAddress()
+                    )
+                }
             } catch (e: Exception) {
                 Toast.makeText(this, "Failed to parse proxy url.", LENGTH_SHORT).show()
                 reportException(e)
@@ -95,8 +114,7 @@ class App : Application(), ImageLoaderFactory {
                         ?.takeIf { it != "null" } // Previously visitorData was sometimes saved as "null" due to a bug
                         ?: YouTube.visitorData().onFailure {
                             withContext(Dispatchers.Main) {
-                                Toast.makeText(this@App, "Failed to get visitorData.", LENGTH_SHORT)
-                                    .show()
+                                Toast.makeText(this@App, "Failed to get visitorData.", LENGTH_SHORT).show()
                             }
                             reportException(it)
                         }.getOrNull()?.also { newVisitorData ->
@@ -135,7 +153,8 @@ class App : Application(), ImageLoaderFactory {
                     try {
                         YouTube.cookie = cookie
                     } catch (e: Exception) {
-                        // we now allow user input now, here be the demons. This serves as a last ditch effort to avoid a crash loop
+                        // we now allow user input now, here be the demons.
+                        // This serves as a last ditch effort to avoid a crash loop
                         Timber.e("Could not parse cookie. Clearing existing cookie. %s", e.message)
                         forgetAccount(this@App)
                     }
