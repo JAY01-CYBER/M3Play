@@ -1,3 +1,4 @@
+@file:Suppress("DEPRECATION", "UNCHECKED_CAST")
 package com.jay.m3play.ui.player
 
 import android.annotation.SuppressLint
