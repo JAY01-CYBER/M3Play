@@ -1,3 +1,5 @@
+@file:Suppress("DEPRECATION")
+
 package com.jay.m3play.ui.theme
 
 import android.graphics.Bitmap
