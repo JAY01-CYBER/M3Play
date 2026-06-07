@@ -11,11 +11,11 @@ plugins {
 }
 
 android {
-    namespace = "com.j.m3play"
+    namespace = "com.jay.m3play"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.j.m3play"
+        applicationId = "com.jay.m3play"
         minSdk = 24
         targetSdk = 35
         versionCode = 2
