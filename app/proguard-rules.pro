@@ -111,7 +111,15 @@
 ## Keep Wire protobuf classes
 -keep class com.squareup.wire.** { *; }
 
-## KEEP RULES FOR JSON MODELS TO PREVENT RELEASE CRASHES
--keep class com.arturo254.innertube.models.** { *; }
--keep class com.arturo254.kugou.models.** { *; }
--keep class com.j.m3play.models.** { *; }
+## KEEP RULES FOR JSON MODELS TO PREVENT RELEASE CRASHES (UPDATED FOR JAY)
+-keep class com.jay.innertube.models.** { *; }
+-keep class com.jay.kugou.models.** { *; }
+-keep class com.jay.m3play.models.** { *; }
+-keep class com.jay.m3play.db.entities.** { *; }
+
+# Extra safety for Kotlin Serialization
+-keepattributes *Annotation*, InnerClasses
+-keepclassmembers class * {
+    @kotlinx.serialization.Serializable *;
+}
+
