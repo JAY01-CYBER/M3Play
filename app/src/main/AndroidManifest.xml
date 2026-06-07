@@ -15,6 +15,8 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
+    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
+
     <uses-permission
         android:name="android.permission.WRITE_EXTERNAL_STORAGE"
         android:maxSdkVersion="32"
@@ -23,12 +25,12 @@
         android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="32" />
 
-
     <queries>
         <intent>
             <action android:name="android.media.action.DISPLAY_AUDIO_EFFECT_CONTROL_PANEL" />
         </intent>
     </queries>
+    
     <application
         android:name=".App"
         android:allowBackup="true"
@@ -38,10 +40,10 @@
         android:fullBackupContent="@xml/backup_rules"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
-
         android:supportsRtl="false"
         android:theme="@style/Theme.OpenTune"
         tools:targetApi="tiramisu">
+        
         <receiver
             android:name=".MusicWidget"
             android:exported="false">
@@ -52,6 +54,7 @@
                 android:name="android.appwidget.provider"
                 android:resource="@xml/widget_info" />
         </receiver>
+        
         <uses-library
             android:name="org.apache.http.legacy"
             android:required="false" />
@@ -72,7 +75,6 @@
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
 
-            <!-- Youtube filter -->
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
                 <action android:name="android.media.action.MEDIA_PLAY_FROM_SEARCH" />
@@ -87,19 +89,14 @@
                 <data android:host="m.youtube.com" />
                 <data android:host="www.youtube.com" />
                 <data android:host="music.youtube.com" />
-                <!-- video prefix -->
                 <data android:pathPrefix="/v/" />
                 <data android:pathPrefix="/embed/" />
                 <data android:pathPrefix="/watch" />
-                <!-- channel prefix -->
                 <data android:pathPrefix="/channel/" />
                 <data android:pathPrefix="/user/" />
                 <data android:pathPrefix="/c/" />
-                <!-- playlist prefix -->
                 <data android:pathPrefix="/playlist" />
-                <!-- browse prefix -->
                 <data android:pathPrefix="/browse/" />
-                <!-- search prefix -->
                 <data android:pathPrefix="/search" />
             </intent-filter>
 
@@ -116,6 +113,7 @@
                 <data android:host="youtu.be" />
                 <data android:pathPrefix="/" />
             </intent-filter>
+            
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <action android:name="android.media.action.MEDIA_PLAY_FROM_SEARCH" />
@@ -128,12 +126,9 @@
                 <data android:scheme="vnd.youtube.launch" />
             </intent-filter>
 
-            <!-- Share filter -->
             <intent-filter>
                 <action android:name="android.intent.action.SEND" />
-
                 <category android:name="android.intent.category.DEFAULT" />
-
                 <data android:mimeType="text/plain" />
             </intent-filter>
 
@@ -151,7 +146,6 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths" />
         </provider>
-
 
         <service
             android:name=".playback.MusicService"
