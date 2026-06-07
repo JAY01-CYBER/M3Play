@@ -11,15 +11,16 @@ plugins {
 }
 
 android {
-    namespace = "com.jay.m3play"
+    namespace = "com.j.m3play"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.jay.m3play"
+        applicationId = "com.j.m3play"
         minSdk = 24
         targetSdk = 35
         versionCode = 2
         versionName = "1.0.1"
+ 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -28,7 +29,8 @@ android {
             if (System.getenv("MUSIC_DEBUG_SIGNING_STORE_PASSWORD") != null) {
                 storeFile = file(System.getenv("MUSIC_DEBUG_KEYSTORE_FILE") ?: "debug.keystore")
                 storePassword = System.getenv("MUSIC_DEBUG_SIGNING_STORE_PASSWORD")
-                keyAlias = System.getenv("MUSIC_DEBUG_SIGNING_KEY_ALIAS") ?: "androiddebugkey"
+                keyAlias = System.getenv("MUSIC_DEBUG_SIGNING_KEY_ALIAS") 
+                    ?: "androiddebugkey"
                 keyPassword = System.getenv("MUSIC_DEBUG_SIGNING_KEY_PASSWORD")
             }
         }
@@ -47,6 +49,7 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             isCrunchPngs = false
+           
             signingConfig = signingConfigs.getByName("release")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
@@ -77,17 +80,17 @@ android {
 
     compileOptions {
         isCoreLibraryDesugaringEnabled = true
-        sourceCompatibility = JavaVersion.VERSION_21
-        targetCompatibility = JavaVersion.VERSION_21
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
 
     kotlin {
-        jvmToolchain(21)
+        jvmToolchain(17)
     }
 
     kotlinOptions {
         freeCompilerArgs = freeCompilerArgs + "-Xcontext-receivers"
-        jvmTarget = "21"
+        jvmTarget = "17"
     }
 
     testOptions {
