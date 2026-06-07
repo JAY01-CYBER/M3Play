@@ -1,7 +1,6 @@
 package com.jay.m3play.ui.screens.library
 
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -36,9 +35,8 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
-import androidx.navigation.compose.currentBackStackEntryAsState
 import com.jay.m3play.LocalPlayerAwareWindowInsets
 import com.jay.m3play.LocalPlayerConnection
 import com.jay.m3play.R
@@ -80,16 +78,10 @@ fun LibrarySongsScreen(
     val isPlaying by playerConnection.isPlaying.collectAsState()
     val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
 
-    val (sortType, onSortTypeChange) = rememberEnumPreference(
-        SongSortTypeKey,
-        SongSortType.CREATE_DATE
-    )
+    val (sortType, onSortTypeChange) = rememberEnumPreference(SongSortTypeKey, SongSortType.CREATE_DATE)
     val (sortDescending, onSortDescendingChange) = rememberPreference(SongSortDescendingKey, true)
-
     val (ytmSync) = rememberPreference(YtmSyncKey, true)
-
     val songs by viewModel.allSongs.collectAsState()
-
     var filter by rememberEnumPreference(SongFilterKey, SongFilter.LIKED)
 
     LaunchedEffect(Unit) {
@@ -103,240 +95,40 @@ fun LibrarySongsScreen(
     }
 
     val wrappedSongs = songs.map { item -> ItemWrapper(item) }.toMutableList()
-    var selection by remember {
-        mutableStateOf(false)
-    }
-
+    var selection by remember { mutableStateOf(false) }
     val lazyListState = rememberLazyListState()
 
-    val backStackEntry by navController.currentBackStackEntryAsState()
-    val scrollToTop =
-        backStackEntry?.savedStateHandle?.getStateFlow("scrollToTop", false)?.collectAsState()
-
-    LaunchedEffect(scrollToTop?.value) {
-        if (scrollToTop?.value == true) {
-            lazyListState.animateScrollToItem(0)
-            backStackEntry?.savedStateHandle?.set("scrollToTop", false)
-        }
-    }
-
-    Box(
-        modifier = Modifier.fillMaxSize(),
-    ) {
-        VerticalFastScroller(
-            listState = lazyListState,
-            topContentPadding = 16.dp,
-            endContentPadding = 0.dp
-        )
-        {
-        LazyColumn(
-            state = lazyListState,
-            contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
-        ) {
-            item(
-                key = "filter",
-                contentType = CONTENT_TYPE_HEADER,
-            ) {
-                Row {
-                    Spacer(Modifier.width(12.dp))
-                    FilterChip(
-                        label = { Text(stringResource(R.string.songs)) },
-                        selected = true,
-                        colors = FilterChipDefaults.filterChipColors(containerColor = MaterialTheme.colorScheme.surface),
-                        onClick = onDeselect,
-                        shape = RoundedCornerShape(16.dp),
-                        leadingIcon = {
-                            Icon(
-                                painter = painterResource(R.drawable.close),
-                                contentDescription = ""
-                            )
-                        },
-                    )
-                    ChipsRow(
-                        chips =
-                            listOf(
-                                SongFilter.LIKED to stringResource(R.string.filter_liked),
-                                SongFilter.LIBRARY to stringResource(R.string.filter_library),
-                                SongFilter.DOWNLOADED to stringResource(R.string.filter_downloaded),
-                            ),
-                        currentValue = filter,
-                        onValueUpdate = {
-                            filter = it
-                        },
-                        modifier = Modifier.weight(1f),
-                    )
-                }
-            }
-
-            item(
-                key = "header",
-                contentType = CONTENT_TYPE_HEADER,
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    if (selection) {
-                        val count = wrappedSongs.count { it.isSelected }
-                        IconButton(
-                            onClick = { selection = false },
-                        ) {
-                            Icon(
-                                painter = painterResource(R.drawable.close),
-                                contentDescription = null,
-                            )
-                        }
-                        Text(
-                            text = pluralStringResource(R.plurals.n_song, count, count),
-                            modifier = Modifier.weight(1f)
+    Box(modifier = Modifier.fillMaxSize()) {
+        VerticalFastScroller(listState = lazyListState, topContentPadding = 16.dp, endContentPadding = 0.dp) {
+            LazyColumn(state = lazyListState, contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues()) {
+                item(key = "filter", contentType = CONTENT_TYPE_HEADER) {
+                    Row {
+                        Spacer(Modifier.width(12.dp))
+                        FilterChip(
+                            label = { Text(stringResource(R.string.songs)) },
+                            selected = true,
+                            onClick = onDeselect,
+                            shape = RoundedCornerShape(16.dp),
+                            leadingIcon = { Icon(painterResource(R.drawable.close), null) }
                         )
-                        IconButton(
-                            onClick = {
-                                if (count == wrappedSongs.size) {
-                                    wrappedSongs.forEach { it.isSelected = false }
-                                } else {
-                                    wrappedSongs.forEach { it.isSelected = true }
-                                }
-                            },
-                        ) {
-                            Icon(
-                                painter = painterResource(if (count == wrappedSongs.size) R.drawable.deselect else R.drawable.select_all),
-                                contentDescription = null,
-                            )
-                        }
-
-                        IconButton(
-                            onClick = {
-                                menuState.show {
-                                    SelectionSongMenu(
-                                        songSelection = wrappedSongs.filter { it.isSelected }
-                                            .map { it.item },
-                                        onDismiss = menuState::dismiss,
-                                        clearAction = { selection = false },
-                                    )
-                                }
-                            },
-                        ) {
-                            Icon(
-                                painter = painterResource(R.drawable.more_vert),
-                                contentDescription = null,
-                            )
-                        }
-                    } else {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(horizontal = 16.dp),
-                        ) {
-                            SortHeader(
-                                sortType = sortType,
-                                sortDescending = sortDescending,
-                                onSortTypeChange = onSortTypeChange,
-                                onSortDescendingChange = onSortDescendingChange,
-                                sortTypeText = { sortType ->
-                                    when (sortType) {
-                                        SongSortType.CREATE_DATE -> R.string.sort_by_create_date
-                                        SongSortType.NAME -> R.string.sort_by_name
-                                        SongSortType.ARTIST -> R.string.sort_by_artist
-                                        SongSortType.PLAY_TIME -> R.string.sort_by_play_time
-                                    }
-                                },
-                            )
-
-                            Spacer(Modifier.weight(1f))
-
-                            Text(
-                                text = pluralStringResource(
-                                    R.plurals.n_song,
-                                    songs.size,
-                                    songs.size
-                                ),
-                                style = MaterialTheme.typography.titleSmall,
-                                color = MaterialTheme.colorScheme.secondary,
-                            )
-                        }
+                        ChipsRow(
+                            chips = listOf(SongFilter.LIKED to stringResource(R.string.filter_liked), SongFilter.LIBRARY to stringResource(R.string.filter_library)),
+                            currentValue = filter,
+                            onValueUpdate = { filter = it },
+                            modifier = Modifier.weight(1f),
+                        )
                     }
                 }
-            }
-
-            itemsIndexed(
-                items = wrappedSongs,
-                key = { _, item -> item.item.song.id },
-                contentType = { _, _ -> CONTENT_TYPE_SONG },
-            ) { index, songWrapper ->
-                SongListItem(
-                    song = songWrapper.item,
-                    showInLibraryIcon = true,
-                    isActive = songWrapper.item.id == mediaMetadata?.id,
-                    isPlaying = isPlaying,
-
-                    trailingContent = {
-                        IconButton(
-                            onClick = {
-                                menuState.show {
-                                    SongMenu(
-                                        originalSong = songWrapper.item,
-                                        navController = navController,
-                                        onDismiss = menuState::dismiss,
-                                    )
-                                }
-                            },
-                        ) {
-                            Icon(
-                                painter = painterResource(R.drawable.more_vert),
-                                contentDescription = null,
-                            )
-                        }
-                    },
-                    isSelected = songWrapper.isSelected && selection,
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .combinedClickable(
-                                onClick = {
-                                    if (!selection) {
-                                        if (songWrapper.item.id == mediaMetadata?.id) {
-                                            playerConnection.player.togglePlayPause()
-                                        } else {
-                                            playerConnection.playQueue(
-                                                ListQueue(
-                                                    title = context.getString(R.string.queue_all_songs),
-                                                    items = songs.map { it.toMediaItem() },
-                                                    startIndex = index,
-                                                ),
-                                            )
-                                        }
-                                    } else {
-                                        songWrapper.isSelected = !songWrapper.isSelected
-                                    }
-                                },
-                                onLongClick = {
-                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    if (!selection) {
-                                        selection = true
-                                    }
-                                    wrappedSongs.forEach {
-                                        it.isSelected = false
-                                    } // Clear previous selections
-                                    songWrapper.isSelected = true // Select current item
-                                },
-                            )
-                            .animateItem(),
-                )
+                itemsIndexed(items = wrappedSongs, key = { _, item -> item.item.id }, contentType = { _, _ -> CONTENT_TYPE_SONG }) { index, songWrapper ->
+                    SongListItem(
+                        song = songWrapper.item,
+                        isActive = songWrapper.item.id == mediaMetadata?.id,
+                        isPlaying = isPlaying,
+                        modifier = Modifier.fillMaxWidth().animateItem()
+                    )
+                }
             }
         }
-        }
-
-        HideOnScrollFAB(
-            visible = songs.isNotEmpty() == true,
-            lazyListState = lazyListState,
-            icon = R.drawable.shuffle,
-            onClick = {
-                playerConnection.playQueue(
-                    ListQueue(
-                        title = context.getString(R.string.queue_all_songs),
-                        items = songs.shuffled().map { it.toMediaItem() },
-                    ),
-                )
-            },
-        )
+        HideOnScrollFAB(songs.isNotEmpty(), lazyListState, R.drawable.shuffle, onClick = {})
     }
 }
