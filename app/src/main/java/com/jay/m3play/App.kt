@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.j.m3play
+package com.jay.m3play
 
 import android.app.Application
 import android.content.Context
