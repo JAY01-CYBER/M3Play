@@ -440,14 +440,20 @@ class MusicService :
             }.onSuccess { playerState ->
                 // Restaurar configuración del reproductor después de cargar la cola
                 scope.launch {
-                    delay(1000) // Esperar a que la cola se cargue
-                    player.repeatMode = playerState.repeatMode
-                    player.shuffleModeEnabled = playerState.shuffleModeEnabled
-                    player.volume = playerState.volume
+                    delay(1500) // Thoda extra time dete hain
+                    
+                    try {
+                        player.repeatMode = playerState.repeatMode
+                        player.shuffleModeEnabled = playerState.shuffleModeEnabled
+                        player.volume = playerState.volume
 
-                    // Restaurar posición si sigue siendo válida
-                    if (playerState.currentMediaItemIndex < player.mediaItemCount) {
-                        player.seekTo(playerState.currentMediaItemIndex, playerState.currentPosition)
+                        // Safe seek lagaya hai taaki crash na ho
+                        if (player.mediaItemCount > 0 && playerState.currentMediaItemIndex >= 0 && playerState.currentMediaItemIndex < player.mediaItemCount) {
+                            player.seekTo(playerState.currentMediaItemIndex, playerState.currentPosition)
+                        }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error restoring player state, safe fallback", e)
+                        // Agar phir bhi gadbad ho, toh app crash nahi hoga
                     }
                 }
             }
