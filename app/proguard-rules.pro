@@ -90,7 +90,6 @@
 -dontwarn java.beans.PropertyDescriptor
 -dontwarn okhttp3.internal.Util
 
-
 ## Rules for PipePipeExtractor
 -keep class project.pipepipe.extractor.** { *; }
 -keep class project.pipepipe.shared.** { *; }
@@ -112,3 +111,7 @@
 ## Keep Wire protobuf classes
 -keep class com.squareup.wire.** { *; }
 
+## KEEP RULES FOR JSON MODELS TO PREVENT RELEASE CRASHES
+-keep class com.arturo254.innertube.models.** { *; }
+-keep class com.arturo254.kugou.models.** { *; }
+-keep class com.j.m3play.models.** { *; }
