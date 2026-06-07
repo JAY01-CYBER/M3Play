@@ -1,3 +1,4 @@
+@file:Suppress("DEPRECATION")
 package com.jay.m3play.ui.player
 
 import android.content.res.Configuration
