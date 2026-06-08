@@ -406,55 +406,59 @@ class MusicService :
             }
 
         if (dataStore.get(PersistentQueueKey, true)) {
-            runCatching {
-                filesDir.resolve(PERSISTENT_QUEUE_FILE).inputStream().use { fis ->
-                    ObjectInputStream(fis).use { oos ->
-                        oos.readObject() as PersistQueue
-                    }
-                }
-            }.onSuccess { queue ->
-                // Convertir de vuelta al tipo de cola apropiado
-                val restoredQueue = queue.toQueue()
-                playQueue(
-                    queue = restoredQueue,
-                    playWhenReady = false,
-                )
-            }
-            runCatching {
-                filesDir.resolve(PERSISTENT_AUTOMIX_FILE).inputStream().use { fis ->
-                    ObjectInputStream(fis).use { oos ->
-                        oos.readObject() as PersistQueue
-                    }
-                }
-            }.onSuccess { queue ->
-                automixItems.value = queue.items.map { it.toMediaItem() }
-            }
-
-            // Restaurar estado del reproductor
-            runCatching {
-                filesDir.resolve(PERSISTENT_PLAYER_STATE_FILE).inputStream().use { fis ->
-                    ObjectInputStream(fis).use { oos ->
-                        oos.readObject() as PersistPlayerState
-                    }
-                }
-            }.onSuccess { playerState ->
-                // Restaurar configuración del reproductor después de cargar la cola
-                scope.launch {
-                    delay(1500) // Thoda extra time dete hain
-                    
-                    try {
-                        player.repeatMode = playerState.repeatMode
-                        player.shuffleModeEnabled = playerState.shuffleModeEnabled
-                        player.volume = playerState.volume
-
-                        // Safe seek lagaya hai taaki crash na ho
-                        if (player.mediaItemCount > 0 && playerState.currentMediaItemIndex >= 0 && playerState.currentMediaItemIndex < player.mediaItemCount) {
-                            player.seekTo(playerState.currentMediaItemIndex, playerState.currentPosition)
+            // 1. Restaurar Persistent Queue
+            try {
+                val queueFile = filesDir.resolve(PERSISTENT_QUEUE_FILE)
+                if (queueFile.exists()) {
+                    queueFile.inputStream().use { fis ->
+                        ObjectInputStream(fis).use { ois ->
+                            val queue = ois.readObject() as PersistQueue
+                            val restoredQueue = queue.toQueue()
+                            playQueue(queue = restoredQueue, playWhenReady = false)
                         }
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Error restoring player state, safe fallback", e)
-                        // Agar phir bhi gadbad ho, toh app crash nahi hoga
                     }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error restoring persistent queue, ignoring corrupt file", e)
+            }
+
+            // 2. Restaurar Automix Queue
+            try {
+                val automixFile = filesDir.resolve(PERSISTENT_AUTOMIX_FILE)
+                if (automixFile.exists()) {
+                    automixFile.inputStream().use { fis ->
+                        ObjectInputStream(fis).use { ois ->
+                            val queue = ois.readObject() as PersistQueue
+                            automixItems.value = queue.items.map { it.toMediaItem() }
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error restoring automix queue, ignoring corrupt file", e)
+            }
+
+            // 3. Restaurar Player State
+            scope.launch {
+                delay(1500)
+                try {
+                    val stateFile = filesDir.resolve(PERSISTENT_PLAYER_STATE_FILE)
+                    if (stateFile.exists()) {
+                        stateFile.inputStream().use { fis ->
+                            ObjectInputStream(fis).use { ois ->
+                                val playerState = ois.readObject() as PersistPlayerState
+                                player.repeatMode = playerState.repeatMode
+                                player.shuffleModeEnabled = playerState.shuffleModeEnabled
+                                player.volume = playerState.volume
+
+                                // Check boundaries to avoid ExoPlayer crash
+                                if (player.mediaItemCount > 0 && playerState.currentMediaItemIndex >= 0 && playerState.currentMediaItemIndex < player.mediaItemCount) {
+                                    player.seekTo(playerState.currentMediaItemIndex, playerState.currentPosition)
+                                }
+                            }
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error restoring player state, ignoring safe fallback", e)
                 }
             }
         }
@@ -1491,74 +1495,60 @@ class MusicService :
 
     private fun saveQueueToDisk() {
         if (player.playbackState == STATE_IDLE && player.mediaItemCount == 0) {
-            filesDir.resolve(PERSISTENT_AUTOMIX_FILE).delete()
-            filesDir.resolve(PERSISTENT_QUEUE_FILE).delete()
-            filesDir.resolve(PERSISTENT_PLAYER_STATE_FILE).delete()
+            scope.launch(Dispatchers.IO) {
+                try {
+                    filesDir.resolve(PERSISTENT_AUTOMIX_FILE).delete()
+                    filesDir.resolve(PERSISTENT_QUEUE_FILE).delete()
+                    filesDir.resolve(PERSISTENT_PLAYER_STATE_FILE).delete()
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error deleting persistent files", e)
+                }
+            }
             return
         }
 
         try {
-            val persistQueue =
-                PersistQueue(
-                    title = queueTitle,
-                    items = player.mediaItems.mapNotNull { it.metadata },
-                    mediaItemIndex = player.currentMediaItemIndex.coerceAtLeast(0),
-                    position = if (player.currentPosition >= 0) player.currentPosition else 0,
-                )
-            val persistAutomix =
-                PersistQueue(
-                    title = "automix",
-                    items = automixItems.value.mapNotNull { it.metadata },
-                    mediaItemIndex = 0,
-                    position = 0,
-                )
-
-            // Guardar estado del reproductor
+            // Leer datos del reproductor en el hilo principal (Main Thread)
+            val persistQueue = PersistQueue(
+                title = queueTitle,
+                items = player.mediaItems.mapNotNull { it.metadata },
+                mediaItemIndex = player.currentMediaItemIndex.coerceAtLeast(0),
+                position = if (player.currentPosition >= 0) player.currentPosition else 0,
+            )
+            val persistAutomix = PersistQueue(
+                title = "automix",
+                items = automixItems.value.mapNotNull { it.metadata },
+                mediaItemIndex = 0,
+                position = 0,
+            )
             val playerState = PersistPlayerState(
                 repeatMode = player.repeatMode,
                 shuffleModeEnabled = player.shuffleModeEnabled,
                 volume = player.volume,
                 currentMediaItemIndex = player.currentMediaItemIndex.coerceAtLeast(0),
                 currentPosition = if (player.currentPosition >= 0) player.currentPosition else 0,
-                playWhenReady = player.playWhenReady, // Estado de reproducción (si está listo para reproducir)
-                playbackState = player.playbackState // Estado actual del reproductor
+                playWhenReady = player.playWhenReady,
+                playbackState = player.playbackState
             )
 
-            runCatching {
-                filesDir.resolve(PERSISTENT_QUEUE_FILE).outputStream().use { fos ->
-                    ObjectOutputStream(fos).use { oos ->
-                        oos.writeObject(persistQueue)
+            // Guardar archivos en un hilo de fondo (IO) para no congelar la app ni crashear
+            scope.launch(Dispatchers.IO) {
+                try {
+                    filesDir.resolve(PERSISTENT_QUEUE_FILE).outputStream().use { fos ->
+                        ObjectOutputStream(fos).use { oos -> oos.writeObject(persistQueue) }
                     }
-                }
-            }.onFailure {
-                Log.e(TAG, "Error saving queue to disk", it)
-                reportException(it)
-            }
-
-            runCatching {
-                filesDir.resolve(PERSISTENT_AUTOMIX_FILE).outputStream().use { fos ->
-                    ObjectOutputStream(fos).use { oos ->
-                        oos.writeObject(persistAutomix)
+                    filesDir.resolve(PERSISTENT_AUTOMIX_FILE).outputStream().use { fos ->
+                        ObjectOutputStream(fos).use { oos -> oos.writeObject(persistAutomix) }
                     }
-                }
-            }.onFailure {
-                Log.e(TAG, "Error saving automix to disk", it)
-                reportException(it)
-            }
-
-            runCatching {
-                filesDir.resolve(PERSISTENT_PLAYER_STATE_FILE).outputStream().use { fos ->
-                    ObjectOutputStream(fos).use { oos ->
-                        oos.writeObject(playerState)
+                    filesDir.resolve(PERSISTENT_PLAYER_STATE_FILE).outputStream().use { fos ->
+                        ObjectOutputStream(fos).use { oos -> oos.writeObject(playerState) }
                     }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error saving queue to disk in IO thread", e)
                 }
-            }.onFailure {
-                Log.e(TAG, "Error saving player state to disk", it)
-                reportException(it)
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Error in saveQueueToDisk", e)
-            reportException(e)
+            Log.e(TAG, "Error collecting player data for save", e)
         }
     }
 
