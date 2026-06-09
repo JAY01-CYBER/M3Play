@@ -421,7 +421,7 @@ class MusicService :
                             }
                         }
                     }
-                } catch (e: Exception) {
+                } catch (e: Throwable) {
                     Log.e(TAG, "Error restoring persistent queue, deleting corrupt file", e)
                     filesDir.resolve(PERSISTENT_QUEUE_FILE).delete()
                 }
@@ -439,7 +439,7 @@ class MusicService :
                             }
                         }
                     }
-                } catch (e: Exception) {
+                } catch (e: Throwable) {
                     Log.e(TAG, "Error restoring automix queue, deleting corrupt file", e)
                     filesDir.resolve(PERSISTENT_AUTOMIX_FILE).delete()
                 }
@@ -460,14 +460,14 @@ class MusicService :
                                         if (player.mediaItemCount > 0 && playerState.currentMediaItemIndex >= 0 && playerState.currentMediaItemIndex < player.mediaItemCount) {
                                             player.seekTo(playerState.currentMediaItemIndex, playerState.currentPosition)
                                         }
-                                    } catch (e: Exception) {
+                                    } catch (e: Throwable) {
                                         Log.e(TAG, "Seek error, ignoring", e)
                                     }
                                 }
                             }
                         }
                     }
-                } catch (e: Exception) {
+                } catch (e: Throwable) {
                     Log.e(TAG, "State corrupted, deleting file", e)
                     filesDir.resolve(PERSISTENT_PLAYER_STATE_FILE).delete()
                 }
@@ -620,7 +620,8 @@ class MusicService :
          * Auto skip to the next media item on error.
          *
          * To prevent a "runaway diesel engine" scenario, force the user to take action after
-         * too many errors come up too quickly. Pause to show player "stopped" state
+         * too many errors come up too quickly.
+         * Pause to show player "stopped" state
          */
         consecutivePlaybackErr += 2
         val nextWindowIndex = player.nextMediaItemIndex
@@ -1277,8 +1278,7 @@ class MusicService :
                     mediaId,
                     dataSpec.position,
                     if (dataSpec.length >= 0) dataSpec.length else 1
-                ) ||
-                playerCache.isCached(mediaId, dataSpec.position, CHUNK_LENGTH)
+                ) || playerCache.isCached(mediaId, dataSpec.position, CHUNK_LENGTH)
             ) {
                 scope.launch(Dispatchers.IO) { recoverSong(mediaId) }
                 return@Factory dataSpec
@@ -1511,7 +1511,7 @@ class MusicService :
                     filesDir.resolve(PERSISTENT_AUTOMIX_FILE).delete()
                     filesDir.resolve(PERSISTENT_QUEUE_FILE).delete()
                     filesDir.resolve(PERSISTENT_PLAYER_STATE_FILE).delete()
-                } catch (e: Exception) {
+                } catch (e: Throwable) {
                     Log.e(TAG, "Error deleting persistent files", e)
                 }
             }
@@ -1519,16 +1519,24 @@ class MusicService :
         }
 
         try {
-            // Leer datos del reproductor en el hilo principal (Main Thread)
+            // Memory Crash se bachne ke liye limit lagai gayi hai (Sirf 70 items save honge)
+            val currentIndex = player.currentMediaItemIndex.coerceAtLeast(0)
+            val totalItems = player.mediaItemCount
+            
+            val startIndex = maxOf(0, currentIndex - 20) // Pichle 20 songs
+            val endIndex = minOf(totalItems, currentIndex + 50) // Aage ke 50 songs
+            
+            val limitedItems = player.mediaItems.subList(startIndex, endIndex)
+
             val persistQueue = PersistQueue(
                 title = queueTitle,
-                items = player.mediaItems.mapNotNull { it.metadata },
-                mediaItemIndex = player.currentMediaItemIndex.coerceAtLeast(0),
+                items = limitedItems.mapNotNull { it.metadata },
+                mediaItemIndex = currentIndex - startIndex,
                 position = if (player.currentPosition >= 0) player.currentPosition else 0,
             )
             val persistAutomix = PersistQueue(
                 title = "automix",
-                items = automixItems.value.mapNotNull { it.metadata },
+                items = automixItems.value.take(50).mapNotNull { it.metadata }, // Limit automix items to 50
                 mediaItemIndex = 0,
                 position = 0,
             )
@@ -1536,13 +1544,13 @@ class MusicService :
                 repeatMode = player.repeatMode,
                 shuffleModeEnabled = player.shuffleModeEnabled,
                 volume = player.volume,
-                currentMediaItemIndex = player.currentMediaItemIndex.coerceAtLeast(0),
+                currentMediaItemIndex = currentIndex - startIndex, // Limited array ke hisaab se index
                 currentPosition = if (player.currentPosition >= 0) player.currentPosition else 0,
                 playWhenReady = player.playWhenReady,
                 playbackState = player.playbackState
             )
 
-            // Guardar archivos en un hilo de fondo (IO) para no congelar la app ni crashear
+            // Background me save karna
             scope.launch(Dispatchers.IO) {
                 try {
                     filesDir.resolve(PERSISTENT_QUEUE_FILE).outputStream().use { fos ->
@@ -1554,11 +1562,11 @@ class MusicService :
                     filesDir.resolve(PERSISTENT_PLAYER_STATE_FILE).outputStream().use { fos ->
                         ObjectOutputStream(fos).use { oos -> oos.writeObject(playerState) }
                     }
-                } catch (e: Exception) {
+                } catch (e: Throwable) {
                     Log.e(TAG, "Error saving queue to disk in IO thread", e)
                 }
             }
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             Log.e(TAG, "Error collecting player data for save", e)
         }
     }
