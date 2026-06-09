@@ -301,7 +301,6 @@ class MusicService :
             connectivityObserver.networkStatus.collect { isConnected ->
                 isNetworkConnected.value = isConnected
                 if (isConnected && waitingForNetworkConnection.value) {
-                    // Reintentar reproducción cuando vuelve la conexión
                     waitingForNetworkConnection.value = false
                     if (player.currentMediaItem != null && player.playWhenReady) {
                         player.prepare()
@@ -405,71 +404,85 @@ class MusicService :
                 }
             }
 
+        // Naya Metrolist (Glossy) Queue Restoration Logic
         if (dataStore.get(PersistentQueueKey, true)) {
             scope.launch(Dispatchers.IO) {
-                // 1. Restaurar Persistent Queue
-                try {
-                    val queueFile = filesDir.resolve(PERSISTENT_QUEUE_FILE)
-                    if (queueFile.exists()) {
+                // 1. Restaurar Persistent Queue safely
+                val queueFile = filesDir.resolve(PERSISTENT_QUEUE_FILE)
+                if (queueFile.exists()) {
+                    runCatching {
                         queueFile.inputStream().use { fis ->
-                            ObjectInputStream(fis).use { ois ->
-                                val queue = ois.readObject() as PersistQueue
-                                val restoredQueue = queue.toQueue()
-                                withContext(Dispatchers.Main) {
-                                    playQueue(queue = restoredQueue, playWhenReady = false)
-                                }
+                            ObjectInputStream(fis).use { oos ->
+                                oos.readObject() as PersistQueue
                             }
                         }
+                    }.onSuccess { queue ->
+                        runCatching {
+                            val restoredQueue = queue.toQueue()
+                            withContext(Dispatchers.Main) {
+                                playQueue(queue = restoredQueue, playWhenReady = false)
+                            }
+                        }.onFailure {
+                            Log.w(TAG, "Failed to restore persisted queue, clearing data", it)
+                            clearPersistedQueueFiles()
+                        }
+                    }.onFailure {
+                        Log.w(TAG, "Failed to read persisted queue, clearing data", it)
+                        clearPersistedQueueFiles()
                     }
-                } catch (e: Throwable) {
-                    Log.e(TAG, "Error restoring persistent queue, deleting corrupt file", e)
-                    filesDir.resolve(PERSISTENT_QUEUE_FILE).delete()
                 }
 
-                // 2. Restaurar Automix Queue
-                try {
-                    val automixFile = filesDir.resolve(PERSISTENT_AUTOMIX_FILE)
-                    if (automixFile.exists()) {
+                // 2. Restaurar Automix Queue safely
+                val automixFile = filesDir.resolve(PERSISTENT_AUTOMIX_FILE)
+                if (automixFile.exists()) {
+                    runCatching {
                         automixFile.inputStream().use { fis ->
                             ObjectInputStream(fis).use { ois ->
-                                val queue = ois.readObject() as PersistQueue
-                                withContext(Dispatchers.Main) {
-                                    automixItems.value = queue.items.map { it.toMediaItem() }
-                                }
+                                ois.readObject() as PersistQueue
                             }
                         }
+                    }.onSuccess { queue ->
+                        runCatching {
+                            withContext(Dispatchers.Main) {
+                                automixItems.value = queue.items.map { it.toMediaItem() }
+                            }
+                        }.onFailure {
+                            Log.w(TAG, "Failed to map automix queue, clearing data", it)
+                            clearPersistedQueueFiles()
+                        }
+                    }.onFailure {
+                        Log.w(TAG, "Failed to read automix queue, clearing data", it)
+                        clearPersistedQueueFiles()
                     }
-                } catch (e: Throwable) {
-                    Log.e(TAG, "Error restoring automix queue, deleting corrupt file", e)
-                    filesDir.resolve(PERSISTENT_AUTOMIX_FILE).delete()
                 }
 
-                // 3. Restaurar Player State
-                try {
-                    val stateFile = filesDir.resolve(PERSISTENT_PLAYER_STATE_FILE)
-                    if (stateFile.exists()) {
+                // 3. Restaurar Player State safely
+                val stateFile = filesDir.resolve(PERSISTENT_PLAYER_STATE_FILE)
+                if (stateFile.exists()) {
+                    runCatching {
                         stateFile.inputStream().use { fis ->
                             ObjectInputStream(fis).use { ois ->
-                                val playerState = ois.readObject() as PersistPlayerState
-                                withContext(Dispatchers.Main) {
-                                    delay(1000)
-                                    try {
-                                        player.repeatMode = playerState.repeatMode
-                                        player.shuffleModeEnabled = playerState.shuffleModeEnabled
-                                        player.volume = playerState.volume
-                                        if (player.mediaItemCount > 0 && playerState.currentMediaItemIndex >= 0 && playerState.currentMediaItemIndex < player.mediaItemCount) {
-                                            player.seekTo(playerState.currentMediaItemIndex, playerState.currentPosition)
-                                        }
-                                    } catch (e: Throwable) {
-                                        Log.e(TAG, "Seek error, ignoring", e)
-                                    }
-                                }
+                                ois.readObject() as PersistPlayerState
                             }
                         }
+                    }.onSuccess { playerState ->
+                        withContext(Dispatchers.Main) {
+                            delay(1000) // Wait for queue to be loaded
+                            runCatching {
+                                player.repeatMode = playerState.repeatMode
+                                player.shuffleModeEnabled = playerState.shuffleModeEnabled
+                                player.volume = playerState.volume
+                                if (player.mediaItemCount > 0 && playerState.currentMediaItemIndex >= 0 && playerState.currentMediaItemIndex < player.mediaItemCount) {
+                                    player.seekTo(playerState.currentMediaItemIndex, playerState.currentPosition)
+                                }
+                            }.onFailure {
+                                Log.e(TAG, "Seek error, ignoring", it)
+                            }
+                        }
+                    }.onFailure {
+                        Log.w(TAG, "State corrupted, deleting file", it)
+                        clearPersistedQueueFiles()
                     }
-                } catch (e: Throwable) {
-                    Log.e(TAG, "State corrupted, deleting file", e)
-                    filesDir.resolve(PERSISTENT_PLAYER_STATE_FILE).delete()
                 }
             }
         }
@@ -616,13 +629,6 @@ class MusicService :
     }
 
     private fun skipOnError() {
-        /**
-         * Auto skip to the next media item on error.
-         *
-         * To prevent a "runaway diesel engine" scenario, force the user to take action after
-         * too many errors come up too quickly.
-         * Pause to show player "stopped" state
-         */
         consecutivePlaybackErr += 2
         val nextWindowIndex = player.nextMediaItemIndex
 
@@ -648,9 +654,7 @@ class MusicService :
                     .Builder()
                     .setDisplayName(
                         getString(
-                            if (currentSong.value?.song?.liked ==
-                                true
-                            ) {
+                            if (currentSong.value?.song?.liked == true) {
                                 R.string.action_remove_like
                             } else {
                                 R.string.action_like
@@ -765,9 +769,7 @@ class MusicService :
             } else {
                 player.setMediaItems(
                     initialStatus.items,
-                    if (initialStatus.mediaItemIndex >
-                        0
-                    ) {
+                    if (initialStatus.mediaItemIndex > 0) {
                         initialStatus.mediaItemIndex
                     } else {
                         0
@@ -783,10 +785,7 @@ class MusicService :
     fun startRadioSeamlessly() {
         val currentMediaMetadata = player.currentMetadata ?: return
 
-        // Guardar canción actual
         val currentSong = player.currentMediaItem
-
-        // Remover otras canciones de la cola
         if (player.currentMediaItemIndex > 0) {
             player.removeMediaItems(0, player.currentMediaItemIndex)
         }
@@ -804,7 +803,6 @@ class MusicService :
                 queueTitle = initialStatus.title
             }
 
-            // Agregar canciones de radio después de la canción actual
             player.addMediaItems(initialStatus.items.drop(1))
             currentQueue = radioQueue
         }
@@ -867,7 +865,6 @@ class MusicService :
     }
 
     fun playNext(items: List<MediaItem>) {
-        // Si la cola está vacía o el reproductor está inactivo, reproducir inmediatamente
         if (player.mediaItemCount == 0 || player.playbackState == STATE_IDLE) {
             player.setMediaItems(items)
             player.prepare()
@@ -878,21 +875,16 @@ class MusicService :
         val insertIndex = player.currentMediaItemIndex + 1
         val shuffleEnabled = player.shuffleModeEnabled
 
-        // Insertar items inmediatamente después del item actual en el espacio de ventana/índice
         player.addMediaItems(insertIndex, items)
         player.prepare()
 
         if (shuffleEnabled) {
-            // Reconstruir orden aleatorio para que los items recién insertados se reproduzcan a continuación
             val timeline = player.currentTimeline
             if (!timeline.isEmpty) {
                 val size = timeline.windowCount
                 val currentIndex = player.currentMediaItemIndex
 
-                // Los índices recién insertados son un rango contiguo [insertIndex, insertIndex + items.size)
                 val newIndices = (insertIndex until (insertIndex + items.size)).toSet()
-
-                // Recopilar el orden de recorrido aleatorio existente excluyendo el índice actual
                 val orderAfter = mutableListOf<Int>()
                 var idx = currentIndex
                 while (true) {
@@ -908,11 +900,10 @@ class MusicService :
                     if (pIdx == C.INDEX_UNSET) break
                     if (pIdx != currentIndex) prevList.add(pIdx)
                 }
-                prevList.reverse() // preservar el orden hacia adelante original
+                prevList.reverse()
 
                 val existingOrder = (prevList + orderAfter).filter { it != currentIndex && it !in newIndices }
 
-                // Construir nuevo orden aleatorio: actual -> recién insertados (en orden de inserción) -> resto
                 val nextBlock = (insertIndex until (insertIndex + items.size)).toList()
                 val finalOrder = IntArray(size)
                 var pos = 0
@@ -920,7 +911,6 @@ class MusicService :
                 nextBlock.forEach { if (it in 0 until size) finalOrder[pos++] = it }
                 existingOrder.forEach { if (pos < size) finalOrder[pos++] = it }
 
-                // Llenar cualquier índice faltante (seguridad) para asegurar una permutación completa
                 if (pos < size) {
                     for (i in 0 until size) {
                         if (!finalOrder.contains(i)) {
@@ -964,7 +954,6 @@ class MusicService :
             return
         }
 
-        // Crear o recrear enhancer si es necesario
         if (loudnessEnhancer == null) {
             try {
                 loudnessEnhancer = LoudnessEnhancer(audioSessionId)
@@ -1064,16 +1053,14 @@ class MusicService :
         mediaItem: MediaItem?,
         reason: Int,
     ) {
-        lastPlaybackSpeed = -1.0f // forzar actualización de canción
+        lastPlaybackSpeed = -1.0f 
 
         setupLoudnessEnhancer()
 
         discordUpdateJob?.cancel()
 
-        // Resetear errores consecutivos cuando hay transición exitosa
         consecutivePlaybackErr = 0
 
-        // Auto cargar más canciones
         if (dataStore.get(AutoLoadMoreKey, true) &&
             reason != Player.MEDIA_ITEM_TRANSITION_REASON_REPEAT &&
             player.mediaItemCount - player.currentMediaItemIndex <= 5 &&
@@ -1089,10 +1076,9 @@ class MusicService :
             }
         }
 
-        // Guardar estado cuando cambia el item de medios
         if (dataStore.get(PersistentQueueKey, true)) {
             scope.launch {
-                delay(500) // Pequeño delay para asegurar que el estado esté estable
+                delay(500) 
                 saveQueueToDisk()
             }
         }
@@ -1101,7 +1087,6 @@ class MusicService :
     override fun onPlaybackStateChanged(
         @Player.State playbackState: Int,
     ) {
-        // Guardar estado cuando cambia el estado de reproducción
         if (dataStore.get(PersistentQueueKey, true) && playbackState != Player.STATE_BUFFERING) {
             scope.launch {
                 delay(500)
@@ -1109,12 +1094,10 @@ class MusicService :
             }
         }
 
-        // Cuando termina la reproducción, ocultar notificación si la cola está vacía
         if (playbackState == Player.STATE_ENDED) {
             scope.launch {
                 delay(1000)
                 if (!player.isPlaying && player.mediaItemCount == 0) {
-                    // Limpiar metadata para forzar actualización de notificación
                     currentMediaMetadata.value = null
                 }
             }
@@ -1126,7 +1109,6 @@ class MusicService :
             setupLoudnessEnhancer()
         }
 
-        // Actualizar notificación cuando cambia el estado de reproducción
         scope.launch {
             delay(300)
             updateNotification()
@@ -1152,7 +1134,6 @@ class MusicService :
                 }
             } else {
                 closeAudioEffectSession()
-                // Abandonar foco de audio cuando no está reproduciendo
                 if (!player.playWhenReady || player.playbackState == Player.STATE_IDLE || player.playbackState == Player.STATE_ENDED) {
                     abandonAudioFocus()
                 }
@@ -1161,14 +1142,12 @@ class MusicService :
 
         if (events.containsAny(EVENT_TIMELINE_CHANGED, EVENT_POSITION_DISCONTINUITY)) {
             currentMediaMetadata.value = player.currentMetadata
-            // Forzar actualización de notificación para asegurar que la imagen se cargue
             scope.launch {
                 delay(200)
                 updateNotification()
             }
         }
 
-        // Actualización de Discord RPC
         if (events.containsAny(Player.EVENT_IS_PLAYING_CHANGED)) {
             if (player.isPlaying) {
                 currentSong.value?.let { song ->
@@ -1177,7 +1156,6 @@ class MusicService :
                     }
                 }
             }
-            // Send empty activity to the Discord RPC if the player is not playing
             else if (!events.containsAny(Player.EVENT_POSITION_DISCONTINUITY, Player.EVENT_MEDIA_ITEM_TRANSITION)){
                 scope.launch {
                     discordRpc?.stopActivity()
@@ -1189,10 +1167,8 @@ class MusicService :
     override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) {
         updateNotification()
         if (shuffleModeEnabled) {
-            // Si la cola está vacía, no mezclar
             if (player.mediaItemCount == 0) return
 
-            // Siempre poner el item que se está reproduciendo primero
             val shuffledIndices = IntArray(player.mediaItemCount) { it }
             shuffledIndices.shuffle()
             shuffledIndices[shuffledIndices.indexOf(player.currentMediaItemIndex)] =
@@ -1201,7 +1177,6 @@ class MusicService :
             player.setShuffleOrder(DefaultShuffleOrder(shuffledIndices, System.currentTimeMillis()))
         }
 
-        // Guardar estado cuando cambia el modo aleatorio
         if (dataStore.get(PersistentQueueKey, true)) {
             scope.launch {
                 delay(300)
@@ -1218,7 +1193,6 @@ class MusicService :
             }
         }
 
-        // Guardar estado cuando cambia el modo de repetición
         if (dataStore.get(PersistentQueueKey, true)) {
             scope.launch {
                 delay(300)
@@ -1289,7 +1263,6 @@ class MusicService :
                 return@Factory dataSpec.withUri(it.first.toUri())
             }
 
-            // Intentar YouTube primero (fuente principal)
             val ytLogTag = "YouTube"
             try {
                 val playbackData = runBlocking(Dispatchers.IO) {
@@ -1354,7 +1327,6 @@ class MusicService :
             } catch (e: Exception) {
                 Timber.tag(ytLogTag).e(e, "YouTube playback error, trying JossRed as fallback")
 
-                // Verificar si la fuente alternativa está habilitada
                 val useAlternativeSource = runBlocking {
                     dataStore.data.map { preferences ->
                         val JossRedMultimedia = booleanPreferencesKey("JossRedMultimedia")
@@ -1362,12 +1334,10 @@ class MusicService :
                     }.first()
                 }
 
-                // Si la fuente alternativa está deshabilitada, relanzar la excepción
                 if (!useAlternativeSource) {
                     throw e
                 }
 
-                // Fuente alternativa: JossRed (fallback)
                 val JRlogTag = "JossRed"
                 try {
                     val alternativeUrl = runCatching {
@@ -1379,7 +1349,6 @@ class MusicService :
                     }.getOrNull()
 
                     if (alternativeUrl != null) {
-                        // Verificar accesibilidad de URL con una solicitud HEAD
                         val client = OkHttpClient.Builder()
                             .connectTimeout(2, TimeUnit.SECONDS)
                             .readTimeout(2, TimeUnit.SECONDS)
@@ -1504,27 +1473,20 @@ class MusicService :
         }
     }
 
+    // Naya Metrolist (Glossy) Hybrid saveQueueToDisk Logic
     private fun saveQueueToDisk() {
         if (player.playbackState == STATE_IDLE && player.mediaItemCount == 0) {
-            scope.launch(Dispatchers.IO) {
-                try {
-                    filesDir.resolve(PERSISTENT_AUTOMIX_FILE).delete()
-                    filesDir.resolve(PERSISTENT_QUEUE_FILE).delete()
-                    filesDir.resolve(PERSISTENT_PLAYER_STATE_FILE).delete()
-                } catch (e: Throwable) {
-                    Log.e(TAG, "Error deleting persistent files", e)
-                }
-            }
+            scope.launch(Dispatchers.IO) { clearPersistedQueueFiles() }
             return
         }
 
-        try {
-            // Memory Crash se bachne ke liye limit lagai gayi hai (Sirf 70 items save honge)
+        runCatching {
+            // Queue Limiting to prevent OOM (Max ~70 items combined scope)
             val currentIndex = player.currentMediaItemIndex.coerceAtLeast(0)
             val totalItems = player.mediaItemCount
             
-            val startIndex = maxOf(0, currentIndex - 20) // Pichle 20 songs
-            val endIndex = minOf(totalItems, currentIndex + 50) // Aage ke 50 songs
+            val startIndex = maxOf(0, currentIndex - 20)
+            val endIndex = minOf(totalItems, currentIndex + 50)
             
             val limitedItems = player.mediaItems.subList(startIndex, endIndex)
 
@@ -1536,7 +1498,7 @@ class MusicService :
             )
             val persistAutomix = PersistQueue(
                 title = "automix",
-                items = automixItems.value.take(50).mapNotNull { it.metadata }, // Limit automix items to 50
+                items = automixItems.value.take(50).mapNotNull { it.metadata },
                 mediaItemIndex = 0,
                 position = 0,
             )
@@ -1544,15 +1506,14 @@ class MusicService :
                 repeatMode = player.repeatMode,
                 shuffleModeEnabled = player.shuffleModeEnabled,
                 volume = player.volume,
-                currentMediaItemIndex = currentIndex - startIndex, // Limited array ke hisaab se index
+                currentMediaItemIndex = currentIndex - startIndex,
                 currentPosition = if (player.currentPosition >= 0) player.currentPosition else 0,
                 playWhenReady = player.playWhenReady,
                 playbackState = player.playbackState
             )
 
-            // Background me save karna
             scope.launch(Dispatchers.IO) {
-                try {
+                runCatching {
                     filesDir.resolve(PERSISTENT_QUEUE_FILE).outputStream().use { fos ->
                         ObjectOutputStream(fos).use { oos -> oos.writeObject(persistQueue) }
                     }
@@ -1562,11 +1523,11 @@ class MusicService :
                     filesDir.resolve(PERSISTENT_PLAYER_STATE_FILE).outputStream().use { fos ->
                         ObjectOutputStream(fos).use { oos -> oos.writeObject(playerState) }
                     }
-                } catch (e: Throwable) {
+                }.onFailure { e ->
                     Log.e(TAG, "Error saving queue to disk in IO thread", e)
                 }
             }
-        } catch (e: Throwable) {
+        }.onFailure { e ->
             Log.e(TAG, "Error collecting player data for save", e)
         }
     }
@@ -1601,6 +1562,13 @@ class MusicService :
     inner class MusicBinder : Binder() {
         val service: MusicService
             get() = this@MusicService
+    }
+
+    // Corrupt files clean karne ka naya function
+    private fun clearPersistedQueueFiles() {
+        runCatching { filesDir.resolve(PERSISTENT_QUEUE_FILE).delete() }
+        runCatching { filesDir.resolve(PERSISTENT_AUTOMIX_FILE).delete() }
+        runCatching { filesDir.resolve(PERSISTENT_PLAYER_STATE_FILE).delete() }
     }
 
     companion object {
