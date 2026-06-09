@@ -27,11 +27,9 @@ import coil.ImageLoaderFactory
 import coil.disk.DiskCache
 import coil.request.CachePolicy
 
-
 import com.jay.innertube.YouTube
 import com.jay.innertube.models.YouTubeLocale
 import com.jay.kugou.KuGou 
-
 
 import com.jay.m3play.constants.AccountChannelHandleKey
 import com.jay.m3play.constants.AccountEmailKey
@@ -61,6 +59,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
@@ -76,38 +75,44 @@ class App : Application(), ImageLoaderFactory {
         instance = this
         Timber.plant(Timber.DebugTree())
 
-        val locale = Locale.getDefault()
-        val languageTag = locale.toLanguageTag().replace("-Hant", "") 
-        YouTube.locale = YouTubeLocale(
-            gl = dataStore[ContentCountryKey]?.takeIf { it != SYSTEM_DEFAULT }
-                ?: locale.country.takeIf { it in CountryCodeToName }
-                ?: "US",
-            hl = dataStore[ContentLanguageKey]?.takeIf { it != SYSTEM_DEFAULT }
-                ?: locale.language.takeIf { it in LanguageCodeToName }
-                ?: languageTag.takeIf { it in LanguageCodeToName }
-                ?: "en"
-        )
-        if (languageTag == "zh-TW") {
-            KuGou.useTraditionalChinese = true
-        }
-
-        if (dataStore[ProxyEnabledKey] == true) {
-            try {
-                val proxyUrl = dataStore[ProxyUrlKey]
-                if (!proxyUrl.isNullOrBlank()) {
-                    YouTube.proxy = Proxy(
-                        dataStore[ProxyTypeKey].toEnum(defaultValue = Proxy.Type.HTTP),
-                        proxyUrl.toInetSocketAddress()
-                    )
-                }
-            } catch (e: Exception) {
-                Toast.makeText(this, "Failed to parse proxy url.", LENGTH_SHORT).show()
-                reportException(e)
+        GlobalScope.launch(Dispatchers.IO) {
+            val locale = Locale.getDefault()
+            val languageTag = locale.toLanguageTag().replace("-Hant", "") 
+            
+            YouTube.locale = YouTubeLocale(
+                gl = dataStore.data.first()[ContentCountryKey]?.takeIf { it != SYSTEM_DEFAULT }
+                    ?: locale.country.takeIf { it in CountryCodeToName }
+                    ?: "US",
+                hl = dataStore.data.first()[ContentLanguageKey]?.takeIf { it != SYSTEM_DEFAULT }
+                    ?: locale.language.takeIf { it in LanguageCodeToName }
+                    ?: languageTag.takeIf { it in LanguageCodeToName }
+                    ?: "en"
+            )
+            
+            if (languageTag == "zh-TW") {
+                KuGou.useTraditionalChinese = true
             }
-        }
 
-        if (dataStore[UseLoginForBrowse] != false) {
-            YouTube.useLoginForBrowse = true
+            if (dataStore.data.first()[ProxyEnabledKey] == true) {
+                try {
+                    val proxyUrl = dataStore.data.first()[ProxyUrlKey]
+                    if (!proxyUrl.isNullOrBlank()) {
+                        YouTube.proxy = Proxy(
+                            dataStore.data.first()[ProxyTypeKey].toEnum(defaultValue = Proxy.Type.HTTP),
+                            proxyUrl.toInetSocketAddress()
+                        )
+                    }
+                } catch (e: Exception) {
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(this@App, "Failed to parse proxy url.", LENGTH_SHORT).show()
+                    }
+                    reportException(e)
+                }
+            }
+
+            if (dataStore.data.first()[UseLoginForBrowse] != false) {
+                YouTube.useLoginForBrowse = true
+            }
         }
 
         GlobalScope.launch {
@@ -129,6 +134,7 @@ class App : Application(), ImageLoaderFactory {
                         }
                 }
         }
+        
         GlobalScope.launch {
             dataStore.data
                 .map { it[DataSyncIdKey] }
@@ -141,6 +147,7 @@ class App : Application(), ImageLoaderFactory {
                     }
                 }
         }
+        
         GlobalScope.launch {
             dataStore.data
                 .map { it[InnerTubeCookieKey] }
