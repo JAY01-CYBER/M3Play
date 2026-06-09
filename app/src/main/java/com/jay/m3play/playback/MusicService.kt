@@ -406,59 +406,70 @@ class MusicService :
             }
 
         if (dataStore.get(PersistentQueueKey, true)) {
-            // 1. Restaurar Persistent Queue
-            try {
-                val queueFile = filesDir.resolve(PERSISTENT_QUEUE_FILE)
-                if (queueFile.exists()) {
-                    queueFile.inputStream().use { fis ->
-                        ObjectInputStream(fis).use { ois ->
-                            val queue = ois.readObject() as PersistQueue
-                            val restoredQueue = queue.toQueue()
-                            playQueue(queue = restoredQueue, playWhenReady = false)
+            scope.launch(Dispatchers.IO) {
+                // 1. Restaurar Persistent Queue
+                try {
+                    val queueFile = filesDir.resolve(PERSISTENT_QUEUE_FILE)
+                    if (queueFile.exists()) {
+                        queueFile.inputStream().use { fis ->
+                            ObjectInputStream(fis).use { ois ->
+                                val queue = ois.readObject() as PersistQueue
+                                val restoredQueue = queue.toQueue()
+                                withContext(Dispatchers.Main) {
+                                    playQueue(queue = restoredQueue, playWhenReady = false)
+                                }
+                            }
                         }
                     }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error restoring persistent queue, deleting corrupt file", e)
+                    filesDir.resolve(PERSISTENT_QUEUE_FILE).delete()
                 }
-            } catch (e: Exception) {
-                Log.e(TAG, "Error restoring persistent queue, ignoring corrupt file", e)
-            }
 
-            // 2. Restaurar Automix Queue
-            try {
-                val automixFile = filesDir.resolve(PERSISTENT_AUTOMIX_FILE)
-                if (automixFile.exists()) {
-                    automixFile.inputStream().use { fis ->
-                        ObjectInputStream(fis).use { ois ->
-                            val queue = ois.readObject() as PersistQueue
-                            automixItems.value = queue.items.map { it.toMediaItem() }
+                // 2. Restaurar Automix Queue
+                try {
+                    val automixFile = filesDir.resolve(PERSISTENT_AUTOMIX_FILE)
+                    if (automixFile.exists()) {
+                        automixFile.inputStream().use { fis ->
+                            ObjectInputStream(fis).use { ois ->
+                                val queue = ois.readObject() as PersistQueue
+                                withContext(Dispatchers.Main) {
+                                    automixItems.value = queue.items.map { it.toMediaItem() }
+                                }
+                            }
                         }
                     }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error restoring automix queue, deleting corrupt file", e)
+                    filesDir.resolve(PERSISTENT_AUTOMIX_FILE).delete()
                 }
-            } catch (e: Exception) {
-                Log.e(TAG, "Error restoring automix queue, ignoring corrupt file", e)
-            }
 
-            // 3. Restaurar Player State
-            scope.launch {
-                delay(1500)
+                // 3. Restaurar Player State
                 try {
                     val stateFile = filesDir.resolve(PERSISTENT_PLAYER_STATE_FILE)
                     if (stateFile.exists()) {
                         stateFile.inputStream().use { fis ->
                             ObjectInputStream(fis).use { ois ->
                                 val playerState = ois.readObject() as PersistPlayerState
-                                player.repeatMode = playerState.repeatMode
-                                player.shuffleModeEnabled = playerState.shuffleModeEnabled
-                                player.volume = playerState.volume
-
-                                // Check boundaries to avoid ExoPlayer crash
-                                if (player.mediaItemCount > 0 && playerState.currentMediaItemIndex >= 0 && playerState.currentMediaItemIndex < player.mediaItemCount) {
-                                    player.seekTo(playerState.currentMediaItemIndex, playerState.currentPosition)
+                                withContext(Dispatchers.Main) {
+                                    delay(1000)
+                                    try {
+                                        player.repeatMode = playerState.repeatMode
+                                        player.shuffleModeEnabled = playerState.shuffleModeEnabled
+                                        player.volume = playerState.volume
+                                        if (player.mediaItemCount > 0 && playerState.currentMediaItemIndex >= 0 && playerState.currentMediaItemIndex < player.mediaItemCount) {
+                                            player.seekTo(playerState.currentMediaItemIndex, playerState.currentPosition)
+                                        }
+                                    } catch (e: Exception) {
+                                        Log.e(TAG, "Seek error, ignoring", e)
+                                    }
                                 }
                             }
                         }
                     }
                 } catch (e: Exception) {
-                    Log.e(TAG, "Error restoring player state, ignoring safe fallback", e)
+                    Log.e(TAG, "State corrupted, deleting file", e)
+                    filesDir.resolve(PERSISTENT_PLAYER_STATE_FILE).delete()
                 }
             }
         }
