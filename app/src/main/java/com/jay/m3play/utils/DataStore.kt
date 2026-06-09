@@ -12,7 +12,6 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.preferencesDataStore
 import com.jay.m3play.extensions.toEnum
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -23,7 +22,7 @@ import kotlin.properties.ReadOnlyProperty
 val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
 
 operator fun <T> DataStore<Preferences>.get(key: Preferences.Key<T>): T? =
-    runBlocking(Dispatchers.IO) {
+    runBlocking {
         data.first()[key]
     }
 
@@ -31,7 +30,7 @@ fun <T> DataStore<Preferences>.get(
     key: Preferences.Key<T>,
     defaultValue: T,
 ): T =
-    runBlocking(Dispatchers.IO) {
+    runBlocking {
         data.first()[key] ?: defaultValue
     }
 
