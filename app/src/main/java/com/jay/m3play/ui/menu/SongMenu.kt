@@ -193,14 +193,16 @@ fun SongMenu(
         ) {
             items(
                 items = song.artists,
-                key = { it.id },
+                key = { it.id ?: it.name },
             ) { artist ->
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
                         .height(ListItemHeight)
                         .clickable {
-                            navController.navigate("artist/${artist.id}")
+                            artist.id?.let { id ->
+                                navController.navigate("artist/$id")
+                            }
                             showSelectArtistDialog = false
                             onDismiss()
                         }
@@ -349,7 +351,9 @@ fun SongMenu(
                                 },
                                 onClick = {
                                     if (song.artists.size == 1) {
-                                        navController.navigate("artist/${song.artists[0].id}")
+                                        song.artists[0].id?.let { id ->
+                                            navController.navigate("artist/$id")
+                                        }
                                         onDismiss()
                                     } else {
                                         showSelectArtistDialog = true
@@ -645,7 +649,13 @@ fun SongMenu(
                             onClick = {
                                 onDismiss()
                                 bottomSheetPageState.show {
-                                    (song.id)
+                                    // Yahan maine (song.id) ko ek proper Compose Element (Box -> Text) se replace kar diya hai
+                                    Box(
+                                        modifier = Modifier.fillMaxWidth().padding(16.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(text = "Song ID: ${song.id}")
+                                    }
                                 }
                             }
                         )
