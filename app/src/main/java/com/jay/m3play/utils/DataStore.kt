@@ -23,7 +23,12 @@ val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "se
 
 operator fun <T> DataStore<Preferences>.get(key: Preferences.Key<T>): T? =
     runBlocking {
-        data.first()[key]
+        try {
+            data.first()[key]
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
     }
 
 fun <T> DataStore<Preferences>.get(
@@ -31,20 +36,37 @@ fun <T> DataStore<Preferences>.get(
     defaultValue: T,
 ): T =
     runBlocking {
-        data.first()[key] ?: defaultValue
+        try {
+            data.first()[key] ?: defaultValue
+        } catch (e: Exception) {
+            e.printStackTrace()
+            defaultValue
+        }
     }
 
 fun <T> preference(
     context: Context,
     key: Preferences.Key<T>,
     defaultValue: T,
-) = ReadOnlyProperty<Any?, T> { _, _ -> context.dataStore[key] ?: defaultValue }
+) = ReadOnlyProperty<Any?, T> { _, _ -> 
+    try {
+        context.dataStore[key] ?: defaultValue
+    } catch (e: Exception) {
+        defaultValue
+    }
+}
 
 inline fun <reified T : Enum<T>> enumPreference(
     context: Context,
     key: Preferences.Key<String>,
     defaultValue: T,
-) = ReadOnlyProperty<Any?, T> { _, _ -> context.dataStore[key].toEnum(defaultValue) }
+) = ReadOnlyProperty<Any?, T> { _, _ -> 
+    try {
+        context.dataStore[key].toEnum(defaultValue)
+    } catch (e: Exception) {
+        defaultValue
+    }
+}
 
 @Composable
 fun <T> rememberPreference(
@@ -59,7 +81,9 @@ fun <T> rememberPreference(
             context.dataStore.data
                 .map { it[key] ?: defaultValue }
                 .distinctUntilChanged()
-        }.collectAsState(context.dataStore[key] ?: defaultValue)
+        }.collectAsState(
+            initial = try { context.dataStore[key] ?: defaultValue } catch(e: Exception) { defaultValue }
+        )
 
     return remember {
         object : MutableState<T> {
@@ -67,14 +91,12 @@ fun <T> rememberPreference(
                 get() = state.value
                 set(value) {
                     coroutineScope.launch {
-                        context.dataStore.edit {
-                            it[key] = value
-                        }
+                        try {
+                            context.dataStore.edit { it[key] = value }
+                        } catch (e: Exception) {}
                     }
                 }
-
             override fun component1() = value
-
             override fun component2(): (T) -> Unit = { value = it }
         }
     }
@@ -88,7 +110,7 @@ inline fun <reified T : Enum<T>> rememberEnumPreference(
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
 
-    val initialValue = context.dataStore[key].toEnum(defaultValue = defaultValue)
+    val initialValue = try { context.dataStore[key].toEnum(defaultValue = defaultValue) } catch(e: Exception) { defaultValue }
     val state =
         remember {
             context.dataStore.data
@@ -102,14 +124,12 @@ inline fun <reified T : Enum<T>> rememberEnumPreference(
                 get() = state.value
                 set(value) {
                     coroutineScope.launch {
-                        context.dataStore.edit {
-                            it[key] = value.name
-                        }
+                        try {
+                            context.dataStore.edit { it[key] = value.name }
+                        } catch (e: Exception) {}
                     }
                 }
-
             override fun component1() = value
-
             override fun component2(): (T) -> Unit = { value = it }
         }
     }
