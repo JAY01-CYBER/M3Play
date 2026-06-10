@@ -1,6 +1,7 @@
 package com.jay.m3play.di
 
 import android.content.Context
+import android.util.Log
 import androidx.media3.database.DatabaseProvider
 import androidx.media3.database.StandaloneDatabaseProvider
 import androidx.media3.datasource.cache.LeastRecentlyUsedCacheEvictor
@@ -16,6 +17,7 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
+import java.io.File
 import javax.inject.Qualifier
 import javax.inject.Singleton
 
@@ -49,9 +51,10 @@ object AppModule {
         @ApplicationContext context: Context,
         databaseProvider: DatabaseProvider,
     ): SimpleCache {
+        val cacheDir = context.filesDir.resolve("exoplayer")
         val constructor = {
             SimpleCache(
-                context.filesDir.resolve("exoplayer"),
+                cacheDir,
                 when (val cacheSize = context.dataStore[MaxSongCacheSizeKey] ?: 1024) {
                     -1 -> NoOpCacheEvictor()
                     else -> LeastRecentlyUsedCacheEvictor(cacheSize * 1024 * 1024L)
@@ -59,8 +62,17 @@ object AppModule {
                 databaseProvider,
             )
         }
-        constructor().release()
-        return constructor()
+        
+        return try {
+            constructor().release()
+            constructor()
+        } catch (e: Exception) {
+            // Cache Corruption Fix: Agar ExoPlayer ka cache corrupt hoga toh app crash nahi karega, 
+            // corrupt files ko safely delete karke naya cache bana lega.
+            Log.e("AppModule", "Player cache corrupted, deleting and creating a new one", e)
+            cacheDir.deleteRecursively()
+            constructor()
+        }
     }
 
     @Singleton
@@ -70,10 +82,19 @@ object AppModule {
         @ApplicationContext context: Context,
         databaseProvider: DatabaseProvider,
     ): SimpleCache {
+        val cacheDir = context.filesDir.resolve("download")
         val constructor = {
-            SimpleCache(context.filesDir.resolve("download"), NoOpCacheEvictor(), databaseProvider)
+            SimpleCache(cacheDir, NoOpCacheEvictor(), databaseProvider)
         }
-        constructor().release()
-        return constructor()
+        
+        return try {
+            constructor().release()
+            constructor()
+        } catch (e: Exception) {
+            // Download Cache Corruption Fix
+            Log.e("AppModule", "Download cache corrupted, deleting and creating a new one", e)
+            cacheDir.deleteRecursively()
+            constructor()
+        }
     }
 }
