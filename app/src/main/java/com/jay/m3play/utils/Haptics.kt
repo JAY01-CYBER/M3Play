@@ -8,54 +8,57 @@ import android.os.VibratorManager
 import androidx.compose.ui.hapticfeedback.HapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import com.jay.m3play.constants.HapticsEnabledKey
-import com.jay.m3play.utils.dataStore
-import com.jay.m3play.utils.get
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
 
 object Haptics {
 
-    private fun isEnabled(context: Context): Boolean {
-        return context.dataStore.get(HapticsEnabledKey, true)
+    // Cache variable jo turant read hoga bina Main Thread block kiye
+    private var isHapticsEnabled = true
+    private var observerJob: Job? = null
+
+    // Ye function chupchap background me setting observe karega
+    private fun ensureObserving(context: Context) {
+        if (observerJob == null) {
+            observerJob = CoroutineScope(Dispatchers.IO).launch {
+                try {
+                    context.dataStore.data.collect { prefs ->
+                        isHapticsEnabled = prefs[HapticsEnabledKey] ?: true
+                    }
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+        }
     }
 
     fun click(haptic: HapticFeedback? = null, context: Context? = null) {
-        if (context != null && !isEnabled(context)) return
+        context?.let { ensureObserving(it.applicationContext) }
+        
+        if (context != null && !isHapticsEnabled) return
 
         haptic?.performHapticFeedback(HapticFeedbackType.TextHandleMove)
             ?: context?.let { vibrate(it, 12L, 80) }
     }
 
     fun tick(haptic: HapticFeedback? = null, context: Context? = null) {
-        if (context != null && !isEnabled(context)) return
+        context?.let { ensureObserving(it.applicationContext) }
+        
+        if (context != null && !isHapticsEnabled) return
 
         haptic?.performHapticFeedback(HapticFeedbackType.TextHandleMove)
             ?: context?.let { vibrate(it, 8L, 60) }
     }
 
     fun longPress(haptic: HapticFeedback? = null, context: Context? = null) {
-        if (context != null && !isEnabled(context)) return
+        context?.let { ensureObserving(it.applicationContext) }
+        
+        if (context != null && !isHapticsEnabled) return
 
         haptic?.performHapticFeedback(HapticFeedbackType.LongPress)
-            ?: context?.let { vibrate(it, 35L, 180) }
-    }
-
-    fun success(context: Context) {
-        if (!isEnabled(context)) return
-
-        waveform(
-            context = context,
-            timings = longArrayOf(0, 20, 30, 35),
-            amplitudes = intArrayOf(0, 120, 0, 180)
-        )
-    }
-
-    fun error(context: Context) {
-        if (!isEnabled(context)) return
-
-        waveform(
-            context = context,
-            timings = longArrayOf(0, 35, 40, 35, 40, 45),
-            amplitudes = intArrayOf(0, 220, 0, 180, 0, 255)
-        )
+            ?: context?.let { vibrate(it, 43L, 120) }
     }
 
     private fun waveform(
