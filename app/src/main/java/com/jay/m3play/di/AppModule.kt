@@ -17,7 +17,6 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
-import java.io.File
 import javax.inject.Qualifier
 import javax.inject.Singleton
 
@@ -42,7 +41,23 @@ object AppModule {
     @Provides
     fun provideDatabaseProvider(
         @ApplicationContext context: Context,
-    ): DatabaseProvider = StandaloneDatabaseProvider(context)
+    ): DatabaseProvider {
+        return try {
+            val provider = StandaloneDatabaseProvider(context)
+            // Force open to check for SQLite database corruption early
+            provider.writableDatabase 
+            provider
+        } catch (e: Exception) {
+            Log.e("AppModule", "ExoPlayer internal database corrupted. Deleting...", e)
+            try {
+                // Yehi tha wo hidden villain jo crash karwa raha tha!
+                context.deleteDatabase("exoplayer_internal.db")
+            } catch (ex: Exception) {
+                Log.e("AppModule", "Failed to delete corrupted DB", ex)
+            }
+            StandaloneDatabaseProvider(context)
+        }
+    }
 
     @Singleton
     @Provides
@@ -52,26 +67,34 @@ object AppModule {
         databaseProvider: DatabaseProvider,
     ): SimpleCache {
         val cacheDir = context.filesDir.resolve("exoplayer")
-        val constructor = {
-            SimpleCache(
-                cacheDir,
-                when (val cacheSize = context.dataStore[MaxSongCacheSizeKey] ?: 1024) {
-                    -1 -> NoOpCacheEvictor()
-                    else -> LeastRecentlyUsedCacheEvictor(cacheSize * 1024 * 1024L)
-                },
-                databaseProvider,
-            )
-        }
+        
+        fun createCache() = SimpleCache(
+            cacheDir,
+            when (val cacheSize = try { context.dataStore[MaxSongCacheSizeKey] ?: 1024 } catch(e: Exception) { 1024 }) {
+                -1 -> NoOpCacheEvictor()
+                else -> LeastRecentlyUsedCacheEvictor(cacheSize * 1024 * 1024L)
+            },
+            databaseProvider,
+        )
         
         return try {
-            constructor().release()
-            constructor()
+            val cache = createCache()
+            cache.release()
+            createCache()
         } catch (e: Exception) {
-            // Cache Corruption Fix: Agar ExoPlayer ka cache corrupt hoga toh app crash nahi karega, 
-            // corrupt files ko safely delete karke naya cache bana lega.
-            Log.e("AppModule", "Player cache corrupted, deleting and creating a new one", e)
+            Log.e("AppModule", "Player cache corrupted, creating a new one", e)
             cacheDir.deleteRecursively()
-            constructor()
+            try {
+                context.deleteDatabase("exoplayer_internal.db")
+            } catch (ex: Exception) {}
+            
+            try {
+                createCache()
+            } catch (e2: Exception) {
+                // Absolute fallback to prevent splash screen crash
+                val tempDir = context.filesDir.resolve("exoplayer_fallback_${System.currentTimeMillis()}")
+                SimpleCache(tempDir, NoOpCacheEvictor(), databaseProvider)
+            }
         }
     }
 
@@ -83,18 +106,22 @@ object AppModule {
         databaseProvider: DatabaseProvider,
     ): SimpleCache {
         val cacheDir = context.filesDir.resolve("download")
-        val constructor = {
-            SimpleCache(cacheDir, NoOpCacheEvictor(), databaseProvider)
-        }
+        
+        fun createCache() = SimpleCache(cacheDir, NoOpCacheEvictor(), databaseProvider)
         
         return try {
-            constructor().release()
-            constructor()
+            val cache = createCache()
+            cache.release()
+            createCache()
         } catch (e: Exception) {
-            // Download Cache Corruption Fix
-            Log.e("AppModule", "Download cache corrupted, deleting and creating a new one", e)
+            Log.e("AppModule", "Download cache corrupted, creating a new one", e)
             cacheDir.deleteRecursively()
-            constructor()
+            try {
+                createCache()
+            } catch (e2: Exception) {
+                val tempDir = context.filesDir.resolve("download_fallback_${System.currentTimeMillis()}")
+                SimpleCache(tempDir, NoOpCacheEvictor(), databaseProvider)
+            }
         }
     }
 }
