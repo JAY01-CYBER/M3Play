@@ -8,8 +8,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalContext
 import androidx.datastore.core.DataStore
+import androidx.datastore.core.handlers.ReplaceFileCorruptionHandler
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.preferencesDataStore
 import com.jay.m3play.extensions.toEnum
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -19,7 +21,13 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlin.properties.ReadOnlyProperty
 
-val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
+// YAHAN MASTER FIX LAGAYA HAI (ReplaceFileCorruptionHandler)
+val Context.dataStore: DataStore<Preferences> by preferencesDataStore(
+    name = "settings",
+    corruptionHandler = ReplaceFileCorruptionHandler(
+        produceNewData = { emptyPreferences() }
+    )
+)
 
 operator fun <T> DataStore<Preferences>.get(key: Preferences.Key<T>): T? =
     runBlocking {
