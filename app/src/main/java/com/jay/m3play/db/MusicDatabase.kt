@@ -114,17 +114,39 @@ class MusicDatabase(
 abstract class InternalDatabase : RoomDatabase() {
     abstract val dao: DatabaseDao
 
+    // YAHAN MASTER FIX LAGAYA GAYA HAI
     companion object {
         const val DB_NAME = "song.db"
 
-        fun newInstance(context: Context): MusicDatabase =
-            MusicDatabase(
-                delegate =
-                    Room
-                        .databaseBuilder(context, InternalDatabase::class.java, DB_NAME)
-                        .addMigrations(MIGRATION_1_2)
-                        .build(),
-            )
+        fun newInstance(context: Context): MusicDatabase {
+            return try {
+                val db = Room.databaseBuilder(context, InternalDatabase::class.java, DB_NAME)
+                    .addMigrations(MIGRATION_1_2)
+                    .fallbackToDestructiveMigrationOnDowngrade()
+                    .build()
+                
+                // Ye app open hote hi force-check karegi ki DB corrupt toh nahi hai
+                db.openHelper.writableDatabase
+                
+                MusicDatabase(delegate = db)
+            } catch (e: Exception) {
+                // AUTO-HEALING: Agar DB corrupt nikla, toh app crash NAHI hoga!
+                android.util.Log.e("InternalDatabase", "Room DB corrupted! Auto-healing...", e)
+                try {
+                    context.deleteDatabase(DB_NAME)
+                    context.deleteDatabase("$DB_NAME-journal")
+                    context.deleteDatabase("$DB_NAME-shm")
+                    context.deleteDatabase("$DB_NAME-wal")
+                } catch (ex: Exception) {}
+                
+                val freshDb = Room.databaseBuilder(context, InternalDatabase::class.java, DB_NAME)
+                    .addMigrations(MIGRATION_1_2)
+                    .fallbackToDestructiveMigrationOnDowngrade()
+                    .build()
+                    
+                MusicDatabase(delegate = freshDb)
+            }
+        }
     }
 }
 
