@@ -15,11 +15,9 @@ import kotlinx.coroutines.launch
 
 object Haptics {
 
-    // Cache variable jo turant read hoga bina Main Thread block kiye
     private var isHapticsEnabled = true
     private var observerJob: Job? = null
 
-    // Ye function chupchap background me setting observe karega
     private fun ensureObserving(context: Context) {
         if (observerJob == null) {
             observerJob = CoroutineScope(Dispatchers.IO).launch {
@@ -59,6 +57,21 @@ object Haptics {
 
         haptic?.performHapticFeedback(HapticFeedbackType.LongPress)
             ?: context?.let { vibrate(it, 43L, 120) }
+    }
+
+    // Missing function wapas add kar diya gaya hai!
+    fun success(haptic: HapticFeedback? = null, context: Context? = null) {
+        context?.let { ensureObserving(it.applicationContext) }
+        
+        if (context != null && !isHapticsEnabled) return
+
+        context?.let { 
+            waveform(
+                it, 
+                longArrayOf(0, 35, 40, 35, 40, 45), 
+                intArrayOf(0, 220, 0, 180, 0, 255)
+            ) 
+        }
     }
 
     private fun waveform(
