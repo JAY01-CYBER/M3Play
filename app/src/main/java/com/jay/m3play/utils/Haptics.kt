@@ -59,8 +59,9 @@ object Haptics {
             ?: context?.let { vibrate(it, 43L, 120) }
     }
 
-    // Missing function wapas add kar diya gaya hai!
-    fun success(haptic: HapticFeedback? = null, context: Context? = null) {
+    // Yahan maine 'context' ko pehla parameter bana diya hai. 
+    // Ab Player.kt ka Haptics.success(context) call perfectly match ho jayega!
+    fun success(context: Context? = null, haptic: HapticFeedback? = null) {
         context?.let { ensureObserving(it.applicationContext) }
         
         if (context != null && !isHapticsEnabled) return
